@@ -1,0 +1,32 @@
+{
+  "name": "ensembl-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for Ensembl genomics API",
+  "main": "dist/index.js",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch run src/index.ts",
+    "test": "bun test"
+  },
+  "keywords": [
+    "mcp",
+    "ensembl",
+    "genomics",
+    "bioinformatics"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}
