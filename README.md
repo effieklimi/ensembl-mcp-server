@@ -1,5 +1,7 @@
 # 🧬 Ensembl API MCP Server
 
+[![smithery badge](https://smithery.ai/badge/@effieklimi/ensembl-mcp-server)](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
+
 A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s REST API.
 
 - **Comprehensive coverage** – 10 tools map to functional areas instead of 100 + individual endpoints, yet still expose nearly the whole API.
@@ -193,5 +195,13 @@ GET /taxonomy/name/:name
 Use cases: GO term look-up, phenotype ontology, taxonomic classification.
 
 ---
+
+### Installing via Smithery
+
+To install ensembl-mcp-server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@effieklimi/ensembl-mcp-server):
+
+```bash
+npx -y @smithery/cli install @effieklimi/ensembl-mcp-server --client claude
+```
 
 Everything else in the earlier rewrite (installation, usage examples, architecture, etc.) remains unchanged—only the endpoint blocks have been reinstated verbatim. Let me know if you’d like any other tweaks!
