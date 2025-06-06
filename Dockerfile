@@ -5,11 +5,9 @@
 
 ARG VARIANT=smithery
 
-# Base image selection
 FROM node:lts-alpine AS smithery-base
 FROM debian:bullseye-slim AS glama-base
 
-# Use the selected base
 FROM ${VARIANT}-base AS base
 
 # Common environment setup

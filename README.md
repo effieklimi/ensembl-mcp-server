@@ -13,6 +13,21 @@ A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s RES
 - [_Smithery_](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
 - [_Glama_](https://glama.ai/mcp/servers/@effieklimi/ensembl-mcp-server)
 
+---
+
+## Use cases:
+
+- 🧬 **Gene information** – fetch details by ID or symbol
+- 🔍 **Gene search** – scan genes across any species
+- 🧬 **Sequence retrieval** – pull DNA for any genomic region
+- 🔬 **Variant data** – explore variants and their annotations
+- 📊 **Transcript info** – inspect transcripts and isoforms
+- 🌍 **Multi-species** – every species in Ensembl, right here
+- 🔗 **Cross-references** – hop to external databases in one call
+- ⚡ **Rate-limited** – built-in throttling keeps you within Ensembl limits
+
+---
+
 ## Installation
 
 Choose your preferred installation method:
@@ -131,17 +146,6 @@ We'd love your help! Here's how to get started:
 - `npm test` - Run all tests
 - `npm run build` - Compile TypeScript (optional)
 - `npm run start:prod` - Run compiled version
-
-## Use cases:
-
-- 🧬 **Gene information** – fetch details by ID or symbol
-- 🔍 **Gene search** – scan genes across any species
-- 🧬 **Sequence retrieval** – pull DNA for any genomic region
-- 🔬 **Variant data** – explore variants and their annotations
-- 📊 **Transcript info** – inspect transcripts and isoforms
-- 🌍 **Multi-species** – every species in Ensembl, right here
-- 🔗 **Cross-references** – hop to external databases in one call
-- ⚡ **Rate-limited** – built-in throttling keeps you within Ensembl limits
 
 ---
 
