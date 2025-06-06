@@ -25,71 +25,154 @@ A comprehensive Model Context Protocol (MCP) server providing access to the Ense
 
 Find genomic features (genes, transcripts, regulatory elements) that overlap with a region or specific feature.
 
-- **Endpoints**: `/overlap/region`, `/overlap/id`
-- **Use cases**: "What genes are in this region?", "What features overlap with this gene?"
+**Endpoints:**
+
+- `GET /overlap/region/:species/:region`
+- `GET /overlap/id/:id`
+
+**Use cases:** "What genes are in this region?", "What features overlap with this gene?"
 
 ### 2. `ensembl_regulatory`
 
 Get regulatory features, binding matrices, and regulatory annotations.
 
-- **Endpoints**: Regulatory overlaps, binding matrix data
-- **Use cases**: Transcription factor binding sites, regulatory feature annotation
+**Endpoints:**
+
+- `GET /overlap/region/:species/:region` (with regulatory feature filtering)
+- `GET /overlap/translation/:id` (regulatory features on proteins)
+- `GET /species/:species/binding_matrix/:binding_matrix_stable_id`
+
+**Use cases:** Transcription factor binding sites, regulatory feature annotation
 
 ### 3. `ensembl_protein_features`
 
 Protein-level features, domains, and functional annotations.
 
-- **Endpoints**: Protein feature overlaps
-- **Use cases**: Protein domains, signal peptides, functional sites
+**Endpoints:**
+
+- `GET /overlap/translation/:id`
+
+**Use cases:** Protein domains, signal peptides, functional sites
 
 ### 4. `ensembl_meta`
 
 Server metadata, data releases, species info, and system status.
 
-- **Endpoints**: `/info/*`, `/archive/id`
-- **Use cases**: "What species are available?", "What assembly version?", server diagnostics
+**Endpoints:**
+
+- `GET /info/ping`
+- `GET /info/rest`
+- `GET /info/software`
+- `GET /info/data`
+- `GET /info/species`
+- `GET /info/divisions`
+- `GET /info/assembly/:species`
+- `GET /info/biotypes/:species`
+- `GET /info/analysis/:species`
+- `GET /info/external_dbs/:species`
+- `GET /info/variation/:species`
+- `GET /archive/id/:id`
+- `POST /archive/id`
+
+**Use cases:** "What species are available?", "What assembly version?", server diagnostics
 
 ### 5. `ensembl_lookup`
 
 Look up genes, transcripts, variants by ID or symbol. Cross-references and ID translation.
 
-- **Endpoints**: `/lookup/*`, `/xrefs/*`, `variant_recoder`
-- **Use cases**: "What is BRCA1?", "Convert this gene symbol to Ensembl ID"
+**Endpoints:**
+
+- `GET /lookup/id/:id`
+- `GET /lookup/symbol/:species/:symbol`
+- `POST /lookup/id`
+- `POST /lookup/symbol`
+- `GET /xrefs/id/:id`
+- `GET /xrefs/symbol/:species/:symbol`
+- `GET /xrefs/name/:species/:name`
+- `GET /variant_recoder/:species/:id`
+- `POST /variant_recoder/:species`
+
+**Use cases:** "What is BRCA1?", "Convert this gene symbol to Ensembl ID"
 
 ### 6. `ensembl_sequence`
 
 Retrieve DNA, RNA, or protein sequences for genes, transcripts, or genomic regions.
 
-- **Endpoints**: `/sequence/id`, `/sequence/region`
-- **Use cases**: Get gene sequences, transcript sequences, genomic region sequences
+**Endpoints:**
+
+- `GET /sequence/id/:id`
+- `GET /sequence/region/:species/:region`
+- `POST /sequence/id`
+- `POST /sequence/region`
+
+**Use cases:** Get gene sequences, transcript sequences, genomic region sequences
 
 ### 7. `ensembl_mapping`
 
 Map coordinates between genomic ↔ cDNA/CDS/protein and between genome assemblies.
 
-- **Endpoints**: `/map/*`
-- **Use cases**: Convert genomic to protein coordinates, lift over between assemblies
+**Endpoints:**
+
+- `GET /map/cdna/:id/:region`
+- `GET /map/cds/:id/:region`
+- `GET /map/translation/:id/:region`
+- `GET /map/:species/:asm_one/:region/:asm_two`
+
+**Use cases:** Convert genomic to protein coordinates, lift over between assemblies
 
 ### 8. `ensembl_compara`
 
 Comparative genomics: gene trees, homology, species alignments, evolutionary analysis.
 
-- **Endpoints**: `/genetree/*`, `/homology/*`, `/alignment/*`
-- **Use cases**: Find orthologs, build phylogenetic trees, get species alignments
+**Endpoints:**
+
+- `GET /homology/id/:species/:id`
+- `GET /homology/symbol/:species/:symbol`
+- `GET /genetree/id/:id`
+- `GET /genetree/member/symbol/:species/:symbol`
+- `GET /genetree/member/id/:species/:id`
+- `GET /cafe/genetree/id/:id`
+- `GET /cafe/genetree/member/symbol/:species/:symbol`
+- `GET /cafe/genetree/member/id/:species/:id`
+- `GET /alignment/region/:species/:region`
+
+**Use cases:** Find orthologs, build phylogenetic trees, get species alignments
 
 ### 9. `ensembl_variation`
 
 Variant analysis: VEP consequence prediction, variant lookup, LD analysis, phenotype mapping.
 
-- **Endpoints**: `/variation/*`, `/vep/*`, `/ld/*`, `/phenotype/*`
-- **Use cases**: Predict variant effects, find variants in region, linkage disequilibrium
+**Endpoints:**
+
+- `GET /variation/:species/:id`
+- `GET /variation/:species/pmcid/:pmcid`
+- `GET /variation/:species/pmid/:pmid`
+- `POST /variation/:species`
+- `GET /vep/:species/hgvs/:hgvs_notation`
+- `POST /vep/:species/hgvs`
+- `GET /vep/:species/id/:id`
+- `POST /vep/:species/id`
+- `GET /vep/:species/region/:region/:allele`
+- `POST /vep/:species/region`
+- `GET /ld/:species/:id/:population_name`
+- `GET /phenotype/variant/:species/:id`
+- `GET /phenotype/region/:species/:region`
+- `GET /transcript_haplotypes/:species/:id`
+
+**Use cases:** Predict variant effects, find variants in region, linkage disequilibrium
 
 ### 10. `ensembl_ontotax`
 
 Ontology term search and NCBI taxonomy traversal.
 
-- **Endpoints**: `/ontology/*`, `/taxonomy/*`
-- **Use cases**: GO term search, phenotype ontologies, taxonomic classification
+**Endpoints:**
+
+- `GET /ontology/id/:id`
+- `GET /ontology/name/:name`
+- `GET /taxonomy/id/:id`
+- `GET /taxonomy/name/:name`
+
+**Use cases:** GO term search, phenotype ontologies, taxonomic classification
 
 ## Installation
 
