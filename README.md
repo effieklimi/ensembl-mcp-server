@@ -22,10 +22,17 @@ Choose your preferred installation method:
 1. Visit [Smithery - Ensembl MCP Server](https://smithery.ai/server/@effieklimi/ensembl-mcp-server). The most common platform options include:
 
 ```bash
-npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client claude --key your-smithery-secret-key # claude code
-npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client cursor --key your-smithery-secret-key # cursor
-npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client vscode --key cba25b51-68a8-4c7a-a66e-2015baf1a52b # vscode
-npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client windsurf --key cba25b51-68a8-4c7a-a66e-2015baf1a52b # windsurf
+# claude code:
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client claude --key your-smithery-secret-key
+
+# cursor:
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client cursor --key your-smithery-secret-key
+
+# vscode:
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client vscode --key your-smithery-secret-key
+
+# windsurf:
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client windsurf --key your-smithery-secret-key
 ```
 
 Check the MCP's smithery link for additional platform options.
