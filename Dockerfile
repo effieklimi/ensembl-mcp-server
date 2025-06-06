@@ -3,12 +3,15 @@
 # For Server 1 (Smithery): docker build --build-arg VARIANT=smithery .
 # For Server 2 (Glama): docker build --build-arg VARIANT=glama .
 
+# Build argument with default
 ARG VARIANT=smithery
 
-FROM node:lts-alpine AS smithery-base
-FROM debian:bullseye-slim AS glama-base
+# Base image selection based on variant
+FROM node:lts-alpine AS base-smithery
+FROM debian:bullseye-slim AS base-glama
 
-FROM ${VARIANT}-base AS base
+# Select the base image
+FROM base-${VARIANT} AS base
 
 # Common environment setup
 ENV DEBIAN_FRONTEND=noninteractive
