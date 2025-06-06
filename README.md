@@ -5,12 +5,19 @@ A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s RES
 ## Why you’ll love it
 
 🧬 **Gene information** – fetch details by ID or symbol
+
 🔍 **Gene search** – scan genes across any species
+
 🧬 **Sequence retrieval** – pull DNA for any genomic region
+
 🔬 **Variant data** – explore variants and their annotations
+
 📊 **Transcript info** – inspect transcripts and isoforms
+
 🌍 **Multi-species** – every species in Ensembl, right here
+
 🔗 **Cross-references** – hop to external databases in one call
+
 ⚡ **Rate-limited** – built-in throttling keeps you within Ensembl limits
 
 - **Comprehensive coverage** – 10 tools map to functional areas instead of 100 + individual endpoints, yet still expose nearly the whole API.
