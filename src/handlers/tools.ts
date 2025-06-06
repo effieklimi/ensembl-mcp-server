@@ -14,27 +14,29 @@ export const ensemblTools: Tool[] = [
         region: {
           type: "string",
           description:
-            "Genomic region in format 'chromosome:start-end' (e.g., '17:7565096-7590856'). Use this OR feature_id, not both.",
+            "Genomic region in format 'chromosome:start-end' (e.g., '17:7565096-7590856', 'X:1000000-2000000', '1:100000-200000'). Use this OR feature_id, not both.",
         },
         feature_id: {
           type: "string",
           description:
-            "Feature ID (gene, transcript, etc.) to find overlapping features for. Use this OR region, not both.",
+            "Feature ID (gene, transcript, etc.) to find overlapping features for (e.g., 'ENSG00000141510', 'ENST00000288602', 'BRCA1'). Use this OR region, not both.",
         },
         species: {
           type: "string",
-          description: "Species name",
+          description:
+            "Species name (e.g., 'homo_sapiens', 'mus_musculus', 'danio_rerio')",
           default: "homo_sapiens",
         },
         feature_types: {
           type: "array",
           items: { type: "string" },
           description:
-            "Types of features to include (e.g., ['gene', 'transcript', 'exon'])",
+            "Types of features to include (e.g., ['gene', 'transcript', 'exon'], ['regulatory', 'enhancer'])",
         },
         biotype: {
           type: "string",
-          description: "Filter by biotype (e.g., 'protein_coding', 'lncRNA')",
+          description:
+            "Filter by biotype (e.g., 'protein_coding', 'lncRNA', 'miRNA', 'pseudogene')",
         },
       },
       oneOf: [{ required: ["region"] }, { required: ["feature_id"] }],
@@ -50,26 +52,28 @@ export const ensemblTools: Tool[] = [
       properties: {
         region: {
           type: "string",
-          description: "Genomic region in format 'chromosome:start-end'",
+          description:
+            "Genomic region in format 'chromosome:start-end' (e.g., '17:7565096-7590856', 'X:1000000-2000000', '6:25000000-35000000')",
         },
         protein_id: {
           type: "string",
           description:
-            "Protein ID for regulatory features affecting translation",
+            "Protein ID for regulatory features affecting translation (e.g., 'ENSP00000288602', 'ENSP00000350283')",
         },
         binding_matrix_id: {
           type: "string",
-          description: "Binding matrix stable ID",
+          description:
+            "Binding matrix stable ID (e.g., 'ENSPFM0001', 'ENSPFM0123')",
         },
         species: {
           type: "string",
-          description: "Species name",
+          description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
         feature_type: {
           type: "string",
           description:
-            "Type of regulatory feature (e.g., 'RegulatoryFeature', 'MotifFeature')",
+            "Type of regulatory feature (e.g., 'RegulatoryFeature', 'MotifFeature', 'TF_binding_site')",
         },
       },
       anyOf: [
@@ -89,16 +93,17 @@ export const ensemblTools: Tool[] = [
       properties: {
         protein_id: {
           type: "string",
-          description: "Protein/translation ID (e.g., ENSP00000288602)",
+          description:
+            "Protein/translation ID (e.g., 'ENSP00000288602', 'ENSP00000350283', 'ENSP00000334393')",
         },
         feature_type: {
           type: "string",
           description:
-            "Type of protein feature (e.g., 'domain', 'signal_peptide')",
+            "Type of protein feature (e.g., 'domain', 'signal_peptide', 'transmembrane', 'low_complexity')",
         },
         species: {
           type: "string",
-          description: "Species name",
+          description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
       },
@@ -132,16 +137,18 @@ export const ensemblTools: Tool[] = [
         },
         species: {
           type: "string",
-          description: "Species name (required for species-specific info)",
+          description:
+            "Species name (required for species-specific info) (e.g., 'homo_sapiens', 'mus_musculus', 'drosophila_melanogaster')",
         },
         archive_id: {
           type: "string",
           description:
-            "ID to get version information for (alternative to info_type)",
+            "ID to get version information for (alternative to info_type) (e.g., 'ENSG00000141510', 'rs699')",
         },
         division: {
           type: "string",
-          description: "Ensembl division name (e.g., 'vertebrates', 'plants')",
+          description:
+            "Ensembl division name (e.g., 'vertebrates', 'plants', 'fungi', 'metazoa')",
         },
       },
       anyOf: [{ required: ["info_type"] }, { required: ["archive_id"] }],
@@ -158,7 +165,7 @@ export const ensemblTools: Tool[] = [
         identifier: {
           type: "string",
           description:
-            "ID or symbol to look up (gene, transcript, variant, etc.)",
+            "ID or symbol to look up (gene, transcript, variant, etc.) (e.g., 'ENSG00000141510', 'BRCA1', 'rs699', 'ENST00000288602')",
         },
         lookup_type: {
           type: "string",
@@ -168,18 +175,19 @@ export const ensemblTools: Tool[] = [
         },
         species: {
           type: "string",
-          description: "Species name",
+          description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
         expand: {
           type: "array",
           items: { type: "string" },
           description:
-            "Additional data to include (e.g., ['Transcript', 'Exon'])",
+            "Additional data to include (e.g., ['Transcript', 'Exon'], ['Translation'], ['UTR'])",
         },
         external_db: {
           type: "string",
-          description: "External database name for xrefs lookup",
+          description:
+            "External database name for xrefs lookup (e.g., 'HGNC', 'UniProtKB/Swiss-Prot', 'RefSeq_mRNA')",
         },
       },
       required: ["identifier"],
@@ -196,7 +204,7 @@ export const ensemblTools: Tool[] = [
         identifier: {
           type: "string",
           description:
-            "Feature ID (gene, transcript, etc.) OR genomic region (chr:start-end)",
+            "Feature ID (gene, transcript, etc.) OR genomic region in format 'chr:start-end' (e.g., 'ENSG00000141510', 'ENST00000288602', '17:7565096-7590856', 'X:1000000-2000000')",
         },
         sequence_type: {
           type: "string",
@@ -206,7 +214,7 @@ export const ensemblTools: Tool[] = [
         },
         species: {
           type: "string",
-          description: "Species name",
+          description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
         format: {
@@ -235,12 +243,12 @@ export const ensemblTools: Tool[] = [
         coordinates: {
           type: "string",
           description:
-            "Coordinates to map (e.g., '100..200' for cDNA/CDS coords, or 'chr:start-end' for genomic)",
+            "Coordinates to map: '100..200' for cDNA/CDS coords, or 'chr:start-end' for genomic (e.g., '100..300', '1..150', '17:7565096-7590856', 'X:1000000-2000000')",
         },
         feature_id: {
           type: "string",
           description:
-            "Feature ID (transcript/translation) for coordinate mapping",
+            "Feature ID (transcript/translation) for coordinate mapping (e.g., 'ENST00000288602', 'ENSP00000288602')",
         },
         mapping_type: {
           type: "string",
@@ -249,15 +257,17 @@ export const ensemblTools: Tool[] = [
         },
         source_assembly: {
           type: "string",
-          description: "Source assembly name (for assembly mapping)",
+          description:
+            "Source assembly name (for assembly mapping) (e.g., 'GRCh37', 'GRCh38')",
         },
         target_assembly: {
           type: "string",
-          description: "Target assembly name (for assembly mapping)",
+          description:
+            "Target assembly name (for assembly mapping) (e.g., 'GRCh38', 'GRCh37')",
         },
         species: {
           type: "string",
-          description: "Species name",
+          description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
       },
@@ -274,15 +284,18 @@ export const ensemblTools: Tool[] = [
       properties: {
         gene_id: {
           type: "string",
-          description: "Gene ID for homology/gene tree analysis",
+          description:
+            "Gene ID for homology/gene tree analysis (e.g., 'ENSG00000141510', 'ENSG00000012048')",
         },
         gene_symbol: {
           type: "string",
-          description: "Gene symbol (alternative to gene_id)",
+          description:
+            "Gene symbol (alternative to gene_id) (e.g., 'BRCA1', 'TP53', 'EGFR')",
         },
         region: {
           type: "string",
-          description: "Genomic region for alignments (chr:start-end)",
+          description:
+            "Genomic region for alignments in format 'chr:start-end' (e.g., '17:7565096-7590856', 'X:1000000-2000000', '6:25000000-35000000')",
         },
         analysis_type: {
           type: "string",
@@ -291,12 +304,14 @@ export const ensemblTools: Tool[] = [
         },
         species: {
           type: "string",
-          description: "Species name",
+          description:
+            "Species name (e.g., 'homo_sapiens', 'mus_musculus', 'pan_troglodytes')",
           default: "homo_sapiens",
         },
         target_species: {
           type: "string",
-          description: "Target species for homology search",
+          description:
+            "Target species for homology search (e.g., 'mus_musculus', 'pan_troglodytes', 'rattus_norvegicus')",
         },
         homology_type: {
           type: "string",
@@ -327,15 +342,18 @@ export const ensemblTools: Tool[] = [
       properties: {
         variant_id: {
           type: "string",
-          description: "Variant ID (e.g., rs699) or HGVS notation",
+          description:
+            "Variant ID (e.g., 'rs699', 'rs1042779', 'COSM476') or HGVS notation (e.g., '17:g.7579472G>C')",
         },
         region: {
           type: "string",
-          description: "Genomic region (chr:start-end) for variant search",
+          description:
+            "Genomic region in format 'chr:start-end' for variant search (e.g., '17:7565096-7590856', 'X:1000000-2000000', '1:100000-200000')",
         },
         hgvs_notation: {
           type: "string",
-          description: "HGVS notation for VEP analysis",
+          description:
+            "HGVS notation for VEP analysis (e.g., '17:g.7579472G>C', 'ENST00000288602.6:c.1799T>A', 'NM_007294.3:c.1799T>A')",
         },
         analysis_type: {
           type: "string",
@@ -344,21 +362,23 @@ export const ensemblTools: Tool[] = [
         },
         species: {
           type: "string",
-          description: "Species name",
+          description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
         consequence_type: {
           type: "string",
-          description: "Filter by consequence type",
+          description:
+            "Filter by consequence type (e.g., 'missense_variant', 'stop_gained', 'splice_donor_variant')",
         },
         population: {
           type: "string",
           description:
-            "Population for LD analysis (e.g., '1000GENOMES:phase_3:EUR')",
+            "Population for LD analysis (e.g., '1000GENOMES:phase_3:EUR', '1000GENOMES:phase_3:AFR', '1000GENOMES:phase_3:ASN')",
         },
         transcript_id: {
           type: "string",
-          description: "Transcript ID for haplotype analysis",
+          description:
+            "Transcript ID for haplotype analysis (e.g., 'ENST00000288602', 'ENST00000350283')",
         },
       },
       anyOf: [
@@ -378,7 +398,8 @@ export const ensemblTools: Tool[] = [
       properties: {
         term: {
           type: "string",
-          description: "Ontology term or taxonomy term to search",
+          description:
+            "Ontology term or taxonomy term to search (e.g., 'protein binding', 'cell cycle', 'mitochondrion', 'Homo sapiens')",
         },
         ontology: {
           type: "string",
@@ -387,11 +408,13 @@ export const ensemblTools: Tool[] = [
         },
         term_id: {
           type: "string",
-          description: "Specific ontology term ID (e.g., GO:0008150)",
+          description:
+            "Specific ontology term ID (e.g., 'GO:0008150', 'GO:0005515', 'HP:0000001', 'MP:0000001')",
         },
         species: {
           type: "string",
-          description: "Species for taxonomy search",
+          description:
+            "Species for taxonomy search (e.g., 'homo_sapiens', 'mus_musculus', 'drosophila_melanogaster')",
         },
         relation: {
           type: "string",
