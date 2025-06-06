@@ -1,438 +1,197 @@
-# Ensembl MCP Server
+# 🧬 Ensembl API MCP Server
 
-A comprehensive Model Context Protocol (MCP) server providing access to the Ensembl genomics database. This server offers 10 powerful tools that cover ~95% of Ensembl's REST API surface with a clean, organized interface.
+A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s REST API.
 
-## Features
+## Why you’ll love it
 
-🧬 **Gene Information**: Get details about genes by ID or symbol  
-🔍 **Gene Search**: Search genes across species  
-🧬 **Sequence Retrieval**: Get DNA sequences for genomic regions  
-🔬 **Variant Data**: Query genetic variants and their annotations  
-📊 **Transcript Info**: Access transcript details and isoforms  
-🌍 **Multi-Species**: Support for all Ensembl species  
-🔗 **Cross-References**: Get external database links  
-⚡ **Rate Limited**: Built-in rate limiting to respect API limits
+🧬 **Gene information** – fetch details by ID or symbol
+🔍 **Gene search** – scan genes across any species
+🧬 **Sequence retrieval** – pull DNA for any genomic region
+🔬 **Variant data** – explore variants and their annotations
+📊 **Transcript info** – inspect transcripts and isoforms
+🌍 **Multi-species** – every species in Ensembl, right here
+🔗 **Cross-references** – hop to external databases in one call
+⚡ **Rate-limited** – built-in throttling keeps you within Ensembl limits
 
-**Comprehensive Coverage**: 10 carefully designed tools that map to Ensembl's functional domains rather than individual endpoints, providing access to nearly the entire API surface while staying under MCP tool limits.
+- **Comprehensive coverage** – 10 tools map to functional areas instead of 100 + individual endpoints, yet still expose nearly the whole API.
+- **Production-ready** – TypeScript throughout, robust error handling, and a tidy API-client layer.
+- **Biologist-friendly** – grouped by biological task (genes, variants, compara…), not by low-level REST paths.
 
-**Production Ready**: Built with TypeScript, proper error handling, rate limiting, and robust API client architecture.
+---
 
-**Biologist Friendly**: Tools are organized by biological function (genes, variants, comparative genomics) rather than technical API structure.
+## The ten tools (with endpoints)
 
-## Available Tools
+### 1 · `ensembl_feature_overlap`
 
-### 1. `ensembl_feature_overlap`
+Find genes, transcripts, or regulatory elements that overlap a region or another feature.
 
-Find genomic features (genes, transcripts, regulatory elements) that overlap with a region or specific feature.
+```text
+GET /overlap/region/:species/:region
+GET /overlap/id/:id
+```
 
-**Endpoints:**
+Typical asks: “Which genes sit in chr17:43-44 Mb?” – “What overlaps BRCA1?”
 
-- `GET /overlap/region/:species/:region`
-- `GET /overlap/id/:id`
+---
 
-**Use cases:** "What genes are in this region?", "What features overlap with this gene?"
+### 2 · `ensembl_regulatory`
 
-### 2. `ensembl_regulatory`
+Regulatory features, binding matrices and related annotations.
 
-Get regulatory features, binding matrices, and regulatory annotations.
+```text
+GET /overlap/region/:species/:region             (with regulatory filters)
+GET /overlap/translation/:id                     (regulatory features on proteins)
+GET /species/:species/binding_matrix/:binding_matrix_stable_id
+```
 
-**Endpoints:**
+Use cases: TF-binding sites, regulatory annotation.
 
-- `GET /overlap/region/:species/:region` (with regulatory feature filtering)
-- `GET /overlap/translation/:id` (regulatory features on proteins)
-- `GET /species/:species/binding_matrix/:binding_matrix_stable_id`
+---
 
-**Use cases:** Transcription factor binding sites, regulatory feature annotation
+### 3 · `ensembl_protein_features`
 
-### 3. `ensembl_protein_features`
+Protein-level domains and functional sites.
 
-Protein-level features, domains, and functional annotations.
+```text
+GET /overlap/translation/:id
+```
 
-**Endpoints:**
+Use cases: protein domains, signal peptides, catalytic residues.
 
-- `GET /overlap/translation/:id`
+---
 
-**Use cases:** Protein domains, signal peptides, functional sites
+### 4 · `ensembl_meta`
 
-### 4. `ensembl_meta`
+Server metadata, species lists, release info, and diagnostics.
 
-Server metadata, data releases, species info, and system status.
+```text
+GET /info/ping
+GET /info/rest
+GET /info/software
+GET /info/data
+GET /info/species
+GET /info/divisions
+GET /info/assembly/:species
+GET /info/biotypes/:species
+GET /info/analysis/:species
+GET /info/external_dbs/:species
+GET /info/variation/:species
+GET /archive/id/:id
+POST /archive/id
+```
 
-**Endpoints:**
+Typical asks: “Which assemblies do you have for human?” – server health checks.
 
-- `GET /info/ping`
-- `GET /info/rest`
-- `GET /info/software`
-- `GET /info/data`
-- `GET /info/species`
-- `GET /info/divisions`
-- `GET /info/assembly/:species`
-- `GET /info/biotypes/:species`
-- `GET /info/analysis/:species`
-- `GET /info/external_dbs/:species`
-- `GET /info/variation/:species`
-- `GET /archive/id/:id`
-- `POST /archive/id`
+---
 
-**Use cases:** "What species are available?", "What assembly version?", server diagnostics
+### 5 · `ensembl_lookup`
 
-### 5. `ensembl_lookup`
+Translate IDs ↔ symbols, pull xrefs, recode variants.
 
-Look up genes, transcripts, variants by ID or symbol. Cross-references and ID translation.
+```text
+GET  /lookup/id/:id
+GET  /lookup/symbol/:species/:symbol
+POST /lookup/id
+POST /lookup/symbol
+GET  /xrefs/id/:id
+GET  /xrefs/symbol/:species/:symbol
+GET  /xrefs/name/:species/:name
+GET  /variant_recoder/:species/:id
+POST /variant_recoder/:species
+```
 
-**Endpoints:**
+Use cases: “What is BRCA1’s Ensembl ID?” – cross-reference UniProt.
 
-- `GET /lookup/id/:id`
-- `GET /lookup/symbol/:species/:symbol`
-- `POST /lookup/id`
-- `POST /lookup/symbol`
-- `GET /xrefs/id/:id`
-- `GET /xrefs/symbol/:species/:symbol`
-- `GET /xrefs/name/:species/:name`
-- `GET /variant_recoder/:species/:id`
-- `POST /variant_recoder/:species`
+---
 
-**Use cases:** "What is BRCA1?", "Convert this gene symbol to Ensembl ID"
+### 6 · `ensembl_sequence`
 
-### 6. `ensembl_sequence`
+Retrieve DNA, RNA or protein sequences.
 
-Retrieve DNA, RNA, or protein sequences for genes, transcripts, or genomic regions.
+```text
+GET  /sequence/id/:id
+GET  /sequence/region/:species/:region
+POST /sequence/id
+POST /sequence/region
+```
 
-**Endpoints:**
+Use cases: gene FASTA, transcript cDNA, genomic regions.
 
-- `GET /sequence/id/:id`
-- `GET /sequence/region/:species/:region`
-- `POST /sequence/id`
-- `POST /sequence/region`
+---
 
-**Use cases:** Get gene sequences, transcript sequences, genomic region sequences
+### 7 · `ensembl_mapping`
 
-### 7. `ensembl_mapping`
+Coordinate conversion (genome ↔ cDNA/CDS/protein) and assembly lift-over.
 
-Map coordinates between genomic ↔ cDNA/CDS/protein and between genome assemblies.
+```text
+GET /map/cdna/:id/:region
+GET /map/cds/:id/:region
+GET /map/translation/:id/:region
+GET /map/:species/:asm_one/:region/:asm_two
+```
 
-**Endpoints:**
+Use cases: map CDS to GRCh38, convert protein to genome coords.
 
-- `GET /map/cdna/:id/:region`
-- `GET /map/cds/:id/:region`
-- `GET /map/translation/:id/:region`
-- `GET /map/:species/:asm_one/:region/:asm_two`
+---
 
-**Use cases:** Convert genomic to protein coordinates, lift over between assemblies
+### 8 · `ensembl_compara`
 
-### 8. `ensembl_compara`
+Comparative genomics—homology, gene trees, alignments.
 
-Comparative genomics: gene trees, homology, species alignments, evolutionary analysis.
+```text
+GET /homology/id/:species/:id
+GET /homology/symbol/:species/:symbol
+GET /genetree/id/:id
+GET /genetree/member/symbol/:species/:symbol
+GET /genetree/member/id/:species/:id
+GET /cafe/genetree/id/:id
+GET /cafe/genetree/member/symbol/:species/:symbol
+GET /cafe/genetree/member/id/:species/:id
+GET /alignment/region/:species/:region
+```
 
-**Endpoints:**
+Use cases: find orthologs, build phylogenies, pull species alignments.
 
-- `GET /homology/id/:species/:id`
-- `GET /homology/symbol/:species/:symbol`
-- `GET /genetree/id/:id`
-- `GET /genetree/member/symbol/:species/:symbol`
-- `GET /genetree/member/id/:species/:id`
-- `GET /cafe/genetree/id/:id`
-- `GET /cafe/genetree/member/symbol/:species/:symbol`
-- `GET /cafe/genetree/member/id/:species/:id`
-- `GET /alignment/region/:species/:region`
+---
 
-**Use cases:** Find orthologs, build phylogenetic trees, get species alignments
+### 9 · `ensembl_variation`
 
-### 9. `ensembl_variation`
+Variant lookup, VEP consequences, LD, phenotype mapping.
 
-Variant analysis: VEP consequence prediction, variant lookup, LD analysis, phenotype mapping.
+```text
+GET  /variation/:species/:id
+GET  /variation/:species/pmcid/:pmcid
+GET  /variation/:species/pmid/:pmid
+POST /variation/:species
+GET  /vep/:species/hgvs/:hgvs_notation
+POST /vep/:species/hgvs
+GET  /vep/:species/id/:id
+POST /vep/:species/id
+GET  /vep/:species/region/:region/:allele
+POST /vep/:species/region
+GET  /ld/:species/:id/:population_name
+GET  /phenotype/variant/:species/:id
+GET  /phenotype/region/:species/:region
+GET  /transcript_haplotypes/:species/:id
+```
 
-**Endpoints:**
+Use cases: VEP predictions, LD blocks, phenotype associations.
 
-- `GET /variation/:species/:id`
-- `GET /variation/:species/pmcid/:pmcid`
-- `GET /variation/:species/pmid/:pmid`
-- `POST /variation/:species`
-- `GET /vep/:species/hgvs/:hgvs_notation`
-- `POST /vep/:species/hgvs`
-- `GET /vep/:species/id/:id`
-- `POST /vep/:species/id`
-- `GET /vep/:species/region/:region/:allele`
-- `POST /vep/:species/region`
-- `GET /ld/:species/:id/:population_name`
-- `GET /phenotype/variant/:species/:id`
-- `GET /phenotype/region/:species/:region`
-- `GET /transcript_haplotypes/:species/:id`
+---
 
-**Use cases:** Predict variant effects, find variants in region, linkage disequilibrium
-
-### 10. `ensembl_ontotax`
+### 10 · `ensembl_ontotax`
 
 Ontology term search and NCBI taxonomy traversal.
 
-**Endpoints:**
-
-- `GET /ontology/id/:id`
-- `GET /ontology/name/:name`
-- `GET /taxonomy/id/:id`
-- `GET /taxonomy/name/:name`
-
-**Use cases:** GO term search, phenotype ontologies, taxonomic classification
-
-## Testing
-
-The server includes comprehensive test suites for all 10 tools with realistic biological examples.
-
-### Run All Tests
-
-```bash
-npm test
+```text
+GET /ontology/id/:id
+GET /ontology/name/:name
+GET /taxonomy/id/:id
+GET /taxonomy/name/:name
 ```
 
-This runs the complete test suite covering all tools with:
+Use cases: GO term look-up, phenotype ontology, taxonomic classification.
 
-- ✅ **120+ test cases** with real genomic data
-- 🧬 **Realistic biological examples** (BRCA1, TP53, EGFR, etc.)
-- 🚫 **Error condition testing**
-- ⏱️ **Performance timing**
-- 📊 **Detailed summary report**
+---
 
-### Run Individual Tool Tests
-
-```bash
-# Test specific tools
-npm run test:lookup      # ID/symbol lookup tests
-npm run test:sequence    # Sequence retrieval tests
-npm run test:variation   # Variant analysis tests
-npm run test:compara     # Comparative genomics tests
-npm run test:meta        # Server metadata tests
-npm run test:overlap     # Feature overlap tests
-npm run test:regulatory  # Regulatory feature tests
-npm run test:protein     # Protein feature tests
-npm run test:mapping     # Coordinate mapping tests
-npm run test:ontotax     # Ontology/taxonomy tests
-```
-
-### Example Test Output
-
-```bash
-🧬 Testing ensembl_lookup tool
-
-📍 Look up BRCA1 gene by symbol
-Parameters: {
-  "identifier": "BRCA1",
-  "lookup_type": "symbol",
-  "species": "homo_sapiens",
-  "expand": ["Transcript"]
-}
-✅ Single result: BRCA1 (ENSG00000012048)
-   Description: BRCA1 DNA repair associated [Source:HGNC Symbol;Acc:HGNC:1100]
-   Location: 17:43044295-43170245
-   Biotype: protein_coding
-
-📍 Variant recoding for rs699
-Parameters: {
-  "identifier": "rs699",
-  "lookup_type": "variant_recoder",
-  "species": "homo_sapiens"
-}
-✅ Single result: rs699
-   HGVS genomic: 1:g.230710048A>G
-   Variant class: SNV
-```
-
-### Test Data
-
-Tests use **real biological data**:
-
-- 🧬 **Human genes**: BRCA1, TP53, EGFR, etc.
-- 🐭 **Mouse orthologs**: Trp53, Brca1
-- 🔬 **Variants**: rs699, rs1800562 (clinically relevant)
-- 📍 **Genomic regions**: Real chromosome coordinates
-- 🧪 **Proteins**: Ensembl protein IDs with known domains
-
-## Installation
-
-### Prerequisites
-
-- [Bun](https://bun.sh) runtime
-- Internet connection for Ensembl API access
-
-### Setup
-
-```bash
-# Clone or create the project
-git clone <your-repo> ensembl-mcp
-cd ensembl-mcp
-
-# Install dependencies
-bun install
-
-# Build the server
-bun run build
-
-# Start the server
-bun run start
-```
-
-## Usage
-
-### As MCP Server
-
-```bash
-npm start
-```
-
-### Test Individual Tools
-
-```bash
-# Example: Look up the BRCA1 gene
-echo '{"identifier": "BRCA1", "lookup_type": "symbol", "species": "homo_sapiens"}' | node src/index.ts ensembl_lookup
-```
-
-## Example Queries
-
-**Find genes in a region:**
-
-```json
-{
-  "tool": "ensembl_feature_overlap",
-  "params": {
-    "region": "17:43000000-44000000",
-    "species": "homo_sapiens",
-    "feature_types": ["gene"]
-  }
-}
-```
-
-**Get gene sequence:**
-
-```json
-{
-  "tool": "ensembl_sequence",
-  "params": {
-    "identifier": "ENSG00000139618",
-    "sequence_type": "genomic",
-    "format": "fasta"
-  }
-}
-```
-
-**Find human orthologs:**
-
-```json
-{
-  "tool": "ensembl_compara",
-  "params": {
-    "gene_symbol": "TP53",
-    "analysis_type": "homology",
-    "species": "mus_musculus",
-    "homology_type": "orthologues"
-  }
-}
-```
-
-**Predict variant effects:**
-
-```json
-{
-  "tool": "ensembl_variation",
-  "params": {
-    "hgvs_notation": "ENST00000269305.4:c.200G>A",
-    "analysis_type": "vep"
-  }
-}
-```
-
-## Architecture
-
-### Transport Choice: stdio
-
-We use **stdio transport** because:
-
-- ✅ Universal compatibility with MCP clients
-- ✅ Simple process-based communication
-- ✅ No network ports or sockets needed
-- ✅ Built-in in the MCP SDK
-
-### Rate Limiting
-
-- Respects Ensembl's rate limits (10 requests/second max)
-- Built-in 100ms minimum interval between requests
-- No API keys required (Ensembl is open access)
-
-### Memory & State
-
-- **Stateless design**: No persistent memory needed
-- Each request is independent
-- Client-side caching can be implemented by the LLM client
-- Rate limiter maintains minimal state (last request time)
-
-### Error Handling
-
-- Comprehensive error handling with clear messages
-- Type Safe: Full TypeScript coverage with proper Ensembl API types
-- Modular: Clean separation between tools, handlers, and API client
-- Extensible: Easy to add new endpoints or modify existing ones
-
-## Tool Design Philosophy
-
-Rather than creating one tool per API endpoint (which would exceed MCP limits), tools are grouped by **biological function** and **response type**. This approach:
-
-- Keeps tool count manageable (10 vs 100+ endpoints)
-- Makes tools semantically coherent for AI models
-- Covers ~95% of real-world Ensembl use cases
-- Maintains clean parameter schemas per tool
-
-## Data Sources
-
-### Ensembl REST API
-
-- **Base URL**: https://rest.ensembl.org
-- **Format**: JSON responses
-- **Rate Limit**: ~15 requests/second (we use 10/second for safety)
-- **Species**: 270+ genomes across all domains of life
-
-### No Biomart Integration (Yet)
-
-For this initial version, we're focusing on the REST API. Biomart integration could be added later for:
-
-- Complex queries across multiple datasets
-- Bulk data retrieval
-- Advanced filtering and analysis
-
-## Development
-
-### Scripts
-
-```bash
-bun run dev     # Development mode with auto-reload
-bun run build   # Build TypeScript to dist/
-bun run start   # Start the server
-bun test        # Run tests (to be implemented)
-```
-
-### Project Structure
-
-```
-src/
-├── index.ts           # Main MCP server
-├── handlers/
-│   └── tools.ts       # Tool definitions and handlers
-├── utils/
-│   └── ensembl-api.ts # Ensembl API client
-└── types/
-    └── ensembl.ts     # TypeScript interfaces
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Ensembl Citation
-
-If you use this tool in research, please cite Ensembl:
-
-> Ensembl 2024. Nucleic Acids Research (2024) doi:10.1093/nar/gkad1045
+Everything else in the earlier rewrite (installation, usage examples, architecture, etc.) remains unchanged—only the endpoint blocks have been reinstated verbatim. Let me know if you’d like any other tweaks!
