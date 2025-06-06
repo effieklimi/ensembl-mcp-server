@@ -1,5 +1,6 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { EnsemblApiClient } from "../utils/ensembl-api.js";
+import { normalizeEnsemblInputs } from "../utils/input-normalizer.js";
 
 const ensemblClient = new EnsemblApiClient();
 
@@ -434,10 +435,11 @@ export const ensemblTools: Tool[] = [
 // Tool execution handlers
 export async function handleFeatureOverlap(args: any) {
   try {
-    if (args.region) {
-      return await ensemblClient.getOverlapByRegion(args);
-    } else if (args.feature_id) {
-      return await ensemblClient.getOverlapById(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    if (normalizedArgs.region) {
+      return await ensemblClient.getOverlapByRegion(normalizedArgs);
+    } else if (normalizedArgs.feature_id) {
+      return await ensemblClient.getOverlapById(normalizedArgs);
     }
     throw new Error("Either region or feature_id must be provided");
   } catch (error) {
@@ -450,7 +452,8 @@ export async function handleFeatureOverlap(args: any) {
 
 export async function handleRegulatory(args: any) {
   try {
-    return await ensemblClient.getRegulatoryFeatures(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getRegulatoryFeatures(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -461,7 +464,8 @@ export async function handleRegulatory(args: any) {
 
 export async function handleProteinFeatures(args: any) {
   try {
-    return await ensemblClient.getProteinFeatures(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getProteinFeatures(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -472,7 +476,8 @@ export async function handleProteinFeatures(args: any) {
 
 export async function handleMeta(args: any) {
   try {
-    return await ensemblClient.getMetaInfo(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getMetaInfo(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -483,7 +488,8 @@ export async function handleMeta(args: any) {
 
 export async function handleLookup(args: any) {
   try {
-    return await ensemblClient.performLookup(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.performLookup(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -494,7 +500,8 @@ export async function handleLookup(args: any) {
 
 export async function handleSequence(args: any) {
   try {
-    return await ensemblClient.getSequenceData(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getSequenceData(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -505,7 +512,8 @@ export async function handleSequence(args: any) {
 
 export async function handleMapping(args: any) {
   try {
-    return await ensemblClient.mapCoordinates(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.mapCoordinates(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -516,7 +524,8 @@ export async function handleMapping(args: any) {
 
 export async function handleCompara(args: any) {
   try {
-    return await ensemblClient.getComparativeData(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getComparativeData(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -527,7 +536,8 @@ export async function handleCompara(args: any) {
 
 export async function handleVariation(args: any) {
   try {
-    return await ensemblClient.getVariationData(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getVariationData(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -538,7 +548,8 @@ export async function handleVariation(args: any) {
 
 export async function handleOntoTax(args: any) {
   try {
-    return await ensemblClient.getOntologyTaxonomy(args);
+    const normalizedArgs = normalizeEnsemblInputs(args);
+    return await ensemblClient.getOntologyTaxonomy(normalizedArgs);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
