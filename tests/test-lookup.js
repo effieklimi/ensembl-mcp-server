@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for ensembl_lookup tool
+ * UNIT TESTS for ensembl_lookup tool
  * Tests ID/symbol lookup, cross-references, and variant recoding
  */
 
@@ -9,178 +9,167 @@ import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
-async function testLookup() {
-  console.log("🔍 Testing ensembl_lookup tool\n");
+// Test framework
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
 
-  const tests = [
-    {
-      name: "Look up BRCA1 gene by symbol",
-      params: {
-        identifier: "BRCA1",
-        lookup_type: "symbol",
-        species: "homo_sapiens",
-        expand: ["Transcript"],
-      },
-    },
-    {
-      name: "Look up TP53 gene by Ensembl ID",
-      params: {
-        identifier: "ENSG00000141510",
-        lookup_type: "id",
-        expand: ["Transcript", "Exon"],
-      },
-    },
-    {
-      name: "Look up EGFR transcript",
-      params: {
-        identifier: "ENST00000275493",
-        lookup_type: "id",
-      },
-    },
-    {
-      name: "Find cross-references for BRCA1",
-      params: {
-        identifier: "ENSG00000012048",
-        lookup_type: "xrefs",
-      },
-    },
-    {
-      name: "Look up external reference (HGNC symbol)",
-      params: {
-        identifier: "TP53",
-        lookup_type: "xrefs",
-        species: "homo_sapiens",
-        external_db: "HGNC",
-      },
-    },
-    {
-      name: "Look up gene cross-references for EGFR",
-      params: {
-        identifier: "ENSG00000146648",
-        lookup_type: "xrefs",
-      },
-    },
-    {
-      name: "Look up with ID expansion",
-      params: {
-        identifier: "ENSG00000141510",
-        lookup_type: "id",
-        expand: ["Transcript"],
-      },
-    },
-    {
-      name: "Look up mouse Trp53 gene",
-      params: {
-        identifier: "Trp53",
-        lookup_type: "symbol",
-        species: "mus_musculus",
-      },
-    },
-    {
-      name: "Look up gene cross-references by symbol",
-      params: {
-        identifier: "BRCA1",
-        lookup_type: "xrefs",
-        species: "homo_sapiens",
-        external_db: "RefSeq_mRNA",
-      },
-    },
-    {
-      name: "Look up WikiGene references",
-      params: {
-        identifier: "TP53",
-        lookup_type: "xrefs",
-        species: "homo_sapiens",
-        external_db: "WikiGene",
-      },
-    },
-  ];
+function test(name, expectedToPass = true) {
+  return {
+    async run(testFunction) {
+      totalTests++;
+      console.log(`\n📍 ${name}`);
 
-  for (const test of tests) {
-    try {
-      console.log(`\n📍 ${test.name}`);
-      console.log(`Parameters:`, JSON.stringify(test.params, null, 2));
-
-      const result = await client.performLookup(test.params);
-
-      if (Array.isArray(result)) {
-        console.log(`✅ Found ${result.length} results`);
-        if (result.length > 0) {
-          const first = result[0];
-
-          // Handle xrefs results
-          if (first.dbname || first.primary_id) {
-            console.log(
-              `   First result: ${first.display_id || first.primary_id} (${
-                first.dbname || "xref"
-              })`
-            );
-            if (first.description) {
-              console.log(
-                `   Description: ${first.description.substring(0, 80)}...`
-              );
-            }
-          }
-
-          // Handle standard gene/transcript results
-          else {
-            console.log(
-              `   First result: ${first.display_name || first.id} (${
-                first.biotype || first.object_type
-              })`
-            );
-            if (first.seq_region_name) {
-              console.log(
-                `   Location: ${first.seq_region_name}:${first.start}-${first.end}`
-              );
-            }
-          }
+      try {
+        await testFunction();
+        if (expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } else if (result) {
-        console.log(`✅ Single result: ${result.display_name || result.id}`);
-        if (result.description) {
-          console.log(
-            `   Description: ${result.description.substring(0, 100)}...`
-          );
-        }
-        if (result.seq_region_name) {
-          console.log(
-            `   Location: ${result.seq_region_name}:${result.start}-${result.end}`
-          );
-        }
-        if (result.biotype) {
-          console.log(`   Biotype: ${result.biotype}`);
+      } catch (error) {
+        if (!expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS - Expected error: ${error.message}`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
         }
       }
-    } catch (error) {
-      console.log(`❌ Error: ${error.message}`);
+    },
+  };
+}
+
+async function runLookupTests() {
+  console.log("🔍 UNIT TESTS: ensembl_lookup tool\n");
+
+  // Positive tests (should pass)
+  await test("Look up BRCA1 gene by symbol").run(async () => {
+    const result = await client.performLookup({
+      identifier: "BRCA1",
+      lookup_type: "symbol",
+      species: "homo_sapiens",
+      expand: ["Transcript"],
+    });
+
+    if (!result || !result.id) throw new Error("No valid result returned");
+    if (result.display_name !== "BRCA1")
+      throw new Error(`Expected BRCA1, got ${result.display_name}`);
+    console.log(`   Result: ${result.display_name} (${result.id})`);
+  });
+
+  await test("Look up TP53 gene by Ensembl ID").run(async () => {
+    const result = await client.performLookup({
+      identifier: "ENSG00000141510",
+      lookup_type: "id",
+      expand: ["Transcript", "Exon"],
+    });
+
+    if (!result || !result.id) throw new Error("No valid result returned");
+    if (result.id !== "ENSG00000141510")
+      throw new Error(`Expected ENSG00000141510, got ${result.id}`);
+    console.log(`   Result: ${result.display_name || result.id}`);
+  });
+
+  await test("Look up EGFR transcript").run(async () => {
+    const result = await client.performLookup({
+      identifier: "ENST00000275493",
+      lookup_type: "id",
+    });
+
+    if (!result || !result.id) throw new Error("No valid result returned");
+    if (result.id !== "ENST00000275493")
+      throw new Error(`Expected ENST00000275493, got ${result.id}`);
+    console.log(`   Result: ${result.display_name || result.id}`);
+  });
+
+  await test("Find cross-references for BRCA1").run(async () => {
+    const result = await client.performLookup({
+      identifier: "ENSG00000012048",
+      lookup_type: "xrefs",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected array of cross-references");
     }
-  }
+    console.log(`   Found ${result.length} cross-references`);
+  });
 
-  // Test error handling
-  console.log("\n🚫 Testing error conditions:");
+  await test("Look up external reference (HGNC symbol)").run(async () => {
+    const result = await client.performLookup({
+      identifier: "TP53",
+      lookup_type: "xrefs",
+      species: "homo_sapiens",
+      external_db: "HGNC",
+    });
 
-  try {
-    console.log("\nTesting invalid gene symbol...");
+    if (!Array.isArray(result)) throw new Error("Expected array result");
+    console.log(`   Found ${result.length} HGNC references`);
+  });
+
+  await test("Look up mouse Trp53 gene").run(async () => {
+    const result = await client.performLookup({
+      identifier: "Trp53",
+      lookup_type: "symbol",
+      species: "mus_musculus",
+    });
+
+    if (!result || !result.id) throw new Error("No valid result returned");
+    console.log(`   Result: ${result.display_name || result.id}`);
+  });
+
+  // Negative tests (should fail and we expect them to)
+  console.log("\n🚫 Testing error conditions (these should fail):");
+
+  await test("Invalid gene symbol", false).run(async () => {
     await client.performLookup({
       identifier: "FAKEGENE123",
       lookup_type: "symbol",
       species: "homo_sapiens",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting invalid Ensembl ID...");
+  await test("Invalid Ensembl ID", false).run(async () => {
     await client.performLookup({
       identifier: "ENSG99999999",
       lookup_type: "id",
     });
+  });
+
+  await test("Missing required identifier", false).run(async () => {
+    await client.performLookup({
+      lookup_type: "symbol",
+      species: "homo_sapiens",
+    });
+  });
+}
+
+// Run tests and exit with appropriate code
+async function main() {
+  try {
+    await runLookupTests();
+
+    console.log(`\n📊 TEST SUMMARY:`);
+    console.log(`   Total tests: ${totalTests}`);
+    console.log(`   Passed: ${passedTests}`);
+    console.log(`   Failed: ${failedTests}`);
+    console.log(
+      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
+    );
+
+    if (failedTests > 0) {
+      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
+      process.exit(1);
+    } else {
+      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
+      process.exit(0);
+    }
   } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
+    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+    process.exit(1);
   }
 }
 
-// Run the tests
-testLookup().catch(console.error);
+main();

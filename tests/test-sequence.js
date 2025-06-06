@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for ensembl_sequence tool
+ * UNIT TESTS for ensembl_sequence tool
  * Tests DNA, RNA, and protein sequence retrieval
  */
 
@@ -9,206 +9,180 @@ import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
-async function testSequence() {
-  console.log("🧬 Testing ensembl_sequence tool\n");
+// Test framework
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
 
-  const tests = [
-    {
-      name: "Get genomic sequence for BRCA1 gene",
-      params: {
-        identifier: "ENSG00000012048",
-        sequence_type: "genomic",
-        species: "homo_sapiens",
-        format: "json",
-      },
-    },
-    {
-      name: "Get cDNA sequence for TP53 transcript",
-      params: {
-        identifier: "ENST00000269305",
-        sequence_type: "cdna",
-        species: "homo_sapiens",
-        format: "fasta",
-      },
-    },
-    {
-      name: "Get CDS sequence for EGFR transcript",
-      params: {
-        identifier: "ENST00000275493",
-        sequence_type: "cds",
-        species: "homo_sapiens",
-        format: "json",
-      },
-    },
-    {
-      name: "Get protein sequence for TP53",
-      params: {
-        identifier: "ENSP00000269305",
-        sequence_type: "protein",
-        species: "homo_sapiens",
-        format: "fasta",
-      },
-    },
-    {
-      name: "Get genomic region sequence (TP53 locus)",
-      params: {
-        identifier: "17:7565096-7590856",
-        sequence_type: "genomic",
-        species: "homo_sapiens",
-        format: "json",
-      },
-    },
-    {
-      name: "Get sequence with soft masking (repeats lowercase)",
-      params: {
-        identifier: "17:7565096-7570000",
-        sequence_type: "genomic",
-        species: "homo_sapiens",
-        format: "json",
-        mask: "soft",
-      },
-    },
-    {
-      name: "Get sequence with hard masking (repeats as N)",
-      params: {
-        identifier: "17:7565096-7570000",
-        sequence_type: "genomic",
-        species: "homo_sapiens",
-        format: "json",
-        mask: "hard",
-      },
-    },
-    {
-      name: "Get mouse Trp53 genomic sequence",
-      params: {
-        identifier: "ENSMUSG00000059552",
-        sequence_type: "genomic",
-        species: "mus_musculus",
-        format: "fasta",
-      },
-    },
-    {
-      name: "Get small genomic region for promoter analysis",
-      params: {
-        identifier: "17:43044295-43045802",
-        sequence_type: "genomic",
-        species: "homo_sapiens",
-        format: "fasta",
-      },
-    },
-    {
-      name: "Get transcript genomic sequence",
-      params: {
-        identifier: "ENST00000269305",
-        sequence_type: "genomic",
-        species: "homo_sapiens",
-        format: "json",
-      },
-    },
-  ];
+function test(name, expectedToPass = true) {
+  return {
+    async run(testFunction) {
+      totalTests++;
+      console.log(`\n📍 ${name}`);
 
-  for (const test of tests) {
-    try {
-      console.log(`\n📍 ${test.name}`);
-      console.log(`Parameters:`, JSON.stringify(test.params, null, 2));
-
-      const result = await client.getSequenceData(test.params);
-
-      if (result) {
-        if (result.seq) {
-          const seqLength = result.seq.length;
-          console.log(`✅ Retrieved sequence of ${seqLength} bp/aa`);
-          console.log(`   ID: ${result.id || result.desc || "N/A"}`);
-          console.log(
-            `   Type: ${result.molecule || test.params.sequence_type}`
-          );
-
-          // Show first and last 20 characters of sequence
-          if (seqLength > 40) {
-            console.log(
-              `   Sequence: ${result.seq.substring(
-                0,
-                20
-              )}...${result.seq.substring(seqLength - 20)}`
-            );
-          } else {
-            console.log(`   Sequence: ${result.seq}`);
-          }
-
-          // Check for soft masking (lowercase)
-          const lowercaseCount = (result.seq.match(/[a-z]/g) || []).length;
-          if (lowercaseCount > 0) {
-            console.log(
-              `   Soft masked bases: ${lowercaseCount}/${seqLength} (${(
-                (lowercaseCount / seqLength) *
-                100
-              ).toFixed(1)}%)`
-            );
-          }
-
-          // Check for hard masking (N's)
-          const nCount = (result.seq.match(/N/g) || []).length;
-          if (nCount > 0) {
-            console.log(
-              `   Hard masked bases: ${nCount}/${seqLength} (${(
-                (nCount / seqLength) *
-                100
-              ).toFixed(1)}%)`
-            );
-          }
+      try {
+        await testFunction();
+        if (expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS`);
         } else {
-          console.log(
-            `✅ Request successful: ${JSON.stringify(result).substring(
-              0,
-              100
-            )}...`
-          );
+          failedTests++;
+          console.log(`❌ FAIL - Expected this test to fail but it passed`);
+        }
+      } catch (error) {
+        if (!expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS - Expected error: ${error.message}`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
         }
       }
-    } catch (error) {
-      console.log(`❌ Error: ${error.message}`);
+    },
+  };
+}
+
+async function runSequenceTests() {
+  console.log("🧬 UNIT TESTS: ensembl_sequence tool\n");
+
+  // Positive tests
+  await test("Get genomic sequence for BRCA1 gene").run(async () => {
+    const result = await client.getSequenceData({
+      identifier: "ENSG00000012048",
+      sequence_type: "genomic",
+      species: "homo_sapiens",
+      format: "json",
+    });
+
+    if (!result || !result.seq) {
+      throw new Error("No sequence data returned");
     }
-  }
+    if (result.seq.length < 1000) {
+      throw new Error(`BRCA1 sequence too short: ${result.seq.length}`);
+    }
+    console.log(`   Retrieved ${result.seq.length} bp sequence`);
+  });
 
-  // Test error handling
-  console.log("\n🚫 Testing error conditions:");
+  await test("Get cDNA sequence for TP53 transcript").run(async () => {
+    const result = await client.getSequenceData({
+      identifier: "ENST00000269305",
+      sequence_type: "cdna",
+      species: "homo_sapiens",
+      format: "fasta",
+    });
 
-  try {
-    console.log("\nTesting invalid identifier...");
+    if (!result || !result.seq) {
+      throw new Error("No cDNA sequence returned");
+    }
+    console.log(`   Retrieved ${result.seq.length} bp cDNA`);
+  });
+
+  await test("Get protein sequence for TP53").run(async () => {
+    const result = await client.getSequenceData({
+      identifier: "ENSP00000269305",
+      sequence_type: "protein",
+      species: "homo_sapiens",
+      format: "fasta",
+    });
+
+    if (!result || !result.seq) {
+      throw new Error("No protein sequence returned");
+    }
+    if (result.seq.length < 300) {
+      throw new Error(`TP53 protein too short: ${result.seq.length}`);
+    }
+    console.log(`   Retrieved ${result.seq.length} aa protein`);
+  });
+
+  await test("Get genomic region sequence").run(async () => {
+    const result = await client.getSequenceData({
+      identifier: "17:7565096-7590856",
+      sequence_type: "genomic",
+      species: "homo_sapiens",
+      format: "json",
+    });
+
+    if (!result || !result.seq) {
+      throw new Error("No region sequence returned");
+    }
+    const expectedLength = 7590856 - 7565096 + 1;
+    if (Math.abs(result.seq.length - expectedLength) > 100) {
+      throw new Error(
+        `Unexpected region length: ${result.seq.length} vs ${expectedLength}`
+      );
+    }
+    console.log(`   Retrieved ${result.seq.length} bp region`);
+  });
+
+  await test("Get sequence with soft masking").run(async () => {
+    const result = await client.getSequenceData({
+      identifier: "17:7565096-7570000",
+      sequence_type: "genomic",
+      species: "homo_sapiens",
+      format: "json",
+      mask: "soft",
+    });
+
+    if (!result || !result.seq) {
+      throw new Error("No masked sequence returned");
+    }
+    const lowercaseCount = (result.seq.match(/[a-z]/g) || []).length;
+    console.log(
+      `   Retrieved ${result.seq.length} bp with ${lowercaseCount} soft-masked bases`
+    );
+  });
+
+  // Negative tests
+  console.log("\n🚫 Testing error conditions (these should fail):");
+
+  await test("Invalid identifier", false).run(async () => {
     await client.getSequenceData({
       identifier: "INVALID_ID",
       sequence_type: "genomic",
       species: "homo_sapiens",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting invalid region format...");
+  await test("Invalid region format", false).run(async () => {
     await client.getSequenceData({
       identifier: "chr17:invalid-region",
       sequence_type: "genomic",
       species: "homo_sapiens",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting protein sequence for genomic region...");
-    const result = await client.getSequenceData({
-      identifier: "17:7565096-7590856",
-      sequence_type: "protein",
+  await test("Missing required identifier", false).run(async () => {
+    await client.getSequenceData({
+      sequence_type: "genomic",
       species: "homo_sapiens",
     });
+  });
+}
+
+// Run tests and exit with appropriate code
+async function main() {
+  try {
+    await runSequenceTests();
+
+    console.log(`\n📊 TEST SUMMARY:`);
+    console.log(`   Total tests: ${totalTests}`);
+    console.log(`   Passed: ${passedTests}`);
+    console.log(`   Failed: ${failedTests}`);
     console.log(
-      `✅ API returns DNA sequence when protein requested for region: ${result.molecule} (${result.seq.length} bp)`
+      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
     );
+
+    if (failedTests > 0) {
+      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
+      process.exit(1);
+    } else {
+      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
+      process.exit(0);
+    }
   } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
+    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+    process.exit(1);
   }
 }
 
-// Run the tests
-testSequence().catch(console.error);
+main();

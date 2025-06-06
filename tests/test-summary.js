@@ -1,70 +1,152 @@
 #!/usr/bin/env node
 
 /**
- * Quick test summary and demo script
- * Shows what the comprehensive Ensembl MCP test suite covers
+ * UNIT TESTS for ensembl_summary tool
+ * Tests comprehensive gene information summaries
  */
 
-console.log("🧬 Ensembl MCP Server - Test Suite Overview\n");
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
-console.log("📊 **Comprehensive Test Coverage:**");
-console.log("   ✅ 10 biologically-organized tools");
-console.log("   ✅ 120+ test cases with real genomic data");
-console.log("   ✅ Error condition testing");
-console.log("   ✅ Performance monitoring\n");
+const client = new EnsemblApiClient();
 
-console.log("🔧 **Available Tools:**");
-const tools = [
-  { name: "ensembl_meta", desc: "Server info, species data, assemblies" },
-  { name: "ensembl_lookup", desc: "Gene/variant lookup, cross-references" },
-  { name: "ensembl_sequence", desc: "DNA/RNA/protein sequence retrieval" },
-  { name: "ensembl_feature_overlap", desc: "Genomic feature overlaps" },
-  { name: "ensembl_regulatory", desc: "Regulatory features, binding matrices" },
-  {
-    name: "ensembl_protein_features",
-    desc: "Protein domains, functional sites",
-  },
-  { name: "ensembl_mapping", desc: "Coordinate transformations" },
-  { name: "ensembl_compara", desc: "Homology, gene trees, alignments" },
-  { name: "ensembl_variation", desc: "VEP analysis, LD, phenotypes" },
-  { name: "ensembl_ontotax", desc: "Ontology and taxonomy searches" },
-];
+// Test framework
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
 
-tools.forEach((tool, i) => {
-  console.log(
-    `   ${(i + 1).toString().padStart(2)}. ${tool.name.padEnd(25)} - ${
-      tool.desc
-    }`
-  );
-});
+function test(name, expectedToPass = true) {
+  return {
+    async run(testFunction) {
+      totalTests++;
+      console.log(`\n📍 ${name}`);
 
-console.log("\n🧪 **Run Tests:**");
-console.log("   npm test                  # Run all tests");
-console.log("   npm run test:lookup       # Test specific tool");
-console.log("   npm run test:sequence     # Test sequence retrieval");
-console.log("   npm run test:variation    # Test variant analysis\n");
+      try {
+        await testFunction();
+        if (expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Expected this test to fail but it passed`);
+        }
+      } catch (error) {
+        if (!expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS - Expected error: ${error.message}`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
+        }
+      }
+    },
+  };
+}
 
-console.log("🧬 **Real Biological Data:**");
-console.log("   • Human genes: BRCA1, TP53, EGFR");
-console.log("   • Mouse orthologs: Trp53, Brca1");
-console.log("   • Clinical variants: rs699, rs1800562");
-console.log("   • Genomic regions: Real chromosome coordinates");
-console.log("   • Protein domains: Pfam, InterPro, SMART annotations\n");
+async function runSummaryTests() {
+  console.log("📋 UNIT TESTS: ensembl_summary tool\n");
 
-console.log("🚀 **Test Examples:**");
-console.log("   • BRCA1 genomic sequence: 125,951 bp");
-console.log("   • TP53 protein domains: 17 functional features");
-console.log("   • VEP analysis: Variant consequence prediction");
-console.log("   • Cross-species: Human↔Mouse homology");
-console.log("   • Coordinate mapping: Genomic↔cDNA↔protein\n");
+  // Positive tests
+  await test("Get TP53 gene summary").run(async () => {
+    const result = await client.getGeneSummary({
+      gene_symbol: "TP53",
+      species: "homo_sapiens",
+    });
 
-console.log("📈 **Coverage:**");
-console.log("   • 62 specific REST endpoints");
-console.log("   • ~95% of Ensembl API surface");
-console.log("   • All major genomics workflows");
-console.log("   • Production-ready error handling\n");
+    if (!result || !result.gene_id) {
+      throw new Error("No gene summary returned for TP53");
+    }
 
-console.log("🎯 **Ready for LLM Integration!**");
-console.log(
-  "   Your MCP server can now handle virtually any genomics query an LLM might ask.\n"
-);
+    if (result.gene_symbol !== "TP53") {
+      throw new Error(`Expected gene symbol TP53, got ${result.gene_symbol}`);
+    }
+
+    console.log(`   Gene ID: ${result.gene_id}`);
+    console.log(
+      `   Location: ${result.chromosome}:${result.start}-${result.end}`
+    );
+  });
+
+  await test("Get BRCA1 gene summary").run(async () => {
+    const result = await client.getGeneSummary({
+      gene_symbol: "BRCA1",
+      species: "homo_sapiens",
+    });
+
+    if (!result || !result.gene_id) {
+      throw new Error("No gene summary returned for BRCA1");
+    }
+
+    if (result.gene_symbol !== "BRCA1") {
+      throw new Error(`Expected gene symbol BRCA1, got ${result.gene_symbol}`);
+    }
+
+    console.log(`   Gene ID: ${result.gene_id}`);
+    console.log(`   Transcripts: ${result.transcript_count || "N/A"}`);
+  });
+
+  await test("Get gene summary by ID").run(async () => {
+    const result = await client.getGeneSummary({
+      gene_id: "ENSG00000141510",
+      species: "homo_sapiens",
+    });
+
+    if (!result || !result.gene_id) {
+      throw new Error("No gene summary returned for TP53 gene ID");
+    }
+
+    console.log(`   Gene symbol: ${result.gene_symbol}`);
+    console.log(`   Description: ${result.description?.substring(0, 50)}...`);
+  });
+
+  // Negative tests
+  console.log("\n🚫 Testing error conditions (these should fail):");
+
+  await test("Invalid gene symbol", false).run(async () => {
+    await client.getGeneSummary({
+      gene_symbol: "FAKEGENE123",
+      species: "homo_sapiens",
+    });
+  });
+
+  await test("Missing required parameters", false).run(async () => {
+    await client.getGeneSummary({
+      species: "homo_sapiens",
+      // Missing both gene_symbol and gene_id
+    });
+  });
+
+  await test("Invalid species", false).run(async () => {
+    await client.getGeneSummary({
+      gene_symbol: "TP53",
+      species: "invalid_species",
+    });
+  });
+}
+
+// Run tests and exit with appropriate code
+async function main() {
+  try {
+    await runSummaryTests();
+
+    console.log(`\n📊 TEST SUMMARY:`);
+    console.log(`   Total tests: ${totalTests}`);
+    console.log(`   Passed: ${passedTests}`);
+    console.log(`   Failed: ${failedTests}`);
+    console.log(
+      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
+    );
+
+    if (failedTests > 0) {
+      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
+      process.exit(1);
+    } else {
+      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
+      process.exit(0);
+    }
+  } catch (error) {
+    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+main();

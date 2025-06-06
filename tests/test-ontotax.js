@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for ensembl_ontotax tool
+ * UNIT TESTS for ensembl_ontotax tool
  * Tests ontology term search and NCBI taxonomy queries
  */
 
@@ -9,217 +9,208 @@ import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
-async function testOntoTax() {
-  console.log("🔬 Testing ensembl_ontotax tool\n");
+// Test framework
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
 
-  const tests = [
-    {
-      name: "Search GO terms for apoptosis",
-      params: {
-        term: "apoptosis",
-        ontology: "GO",
-      },
-    },
-    {
-      name: "Search GO terms for DNA repair",
-      params: {
-        term: "DNA repair",
-        ontology: "GO",
-      },
-    },
-    {
-      name: "Get specific GO term details",
-      params: {
-        term_id: "GO:0006915",
-      },
-    },
-    {
-      name: "Search SO terms for transcript",
-      params: {
-        term: "transcript",
-        ontology: "SO",
-      },
-    },
-    {
-      name: "Get taxonomy info for human",
-      params: {
-        ontology: "taxonomy",
-        species: "9606",
-      },
-    },
-    {
-      name: "Get taxonomy info for mouse",
-      params: {
-        ontology: "taxonomy",
-        species: "10090",
-      },
-    },
-    {
-      name: "Search taxonomy by name",
-      params: {
-        ontology: "taxonomy",
-        term: "Homo sapiens",
-      },
-    },
-    {
-      name: "Search for primate taxonomy",
-      params: {
-        ontology: "taxonomy",
-        term: "Primates",
-      },
-    },
-    {
-      name: "Get taxonomy info for mammals",
-      params: {
-        ontology: "taxonomy",
-        species: "40674",
-      },
-    },
-    {
-      name: "Search more GO terms for DNA binding",
-      params: {
-        term: "DNA binding",
-        ontology: "GO",
-      },
-    },
-    {
-      name: "Search MONDO disease terms",
-      params: {
-        term: "diabetes",
-        ontology: "MONDO",
-      },
-    },
-    {
-      name: "Search HP phenotype terms",
-      params: {
-        term: "seizure",
-        ontology: "HP",
-      },
-    },
-  ];
+function test(name, expectedToPass = true) {
+  return {
+    async run(testFunction) {
+      totalTests++;
+      console.log(`\n📍 ${name}`);
 
-  for (const test of tests) {
-    try {
-      console.log(`\n📍 ${test.name}`);
-      console.log(`Parameters:`, JSON.stringify(test.params, null, 2));
-
-      const result = await client.getOntologyTaxonomy(test.params);
-
-      if (Array.isArray(result)) {
-        console.log(`✅ Found ${result.length} results`);
-
-        if (result.length > 0) {
-          const first = result[0];
-
-          // Ontology results
-          if (first.term) {
-            console.log(`   First term: ${first.term} (${first.accession})`);
-            if (first.definition) {
-              console.log(
-                `   Definition: ${first.definition.substring(0, 100)}...`
-              );
-            }
-            if (first.namespace) {
-              console.log(`   Namespace: ${first.namespace}`);
-            }
-          }
-
-          // Taxonomy results
-          if (first.scientific_name) {
-            console.log(`   Species: ${first.scientific_name}`);
-            if (first.common_name) {
-              console.log(`   Common name: ${first.common_name}`);
-            }
-            if (first.taxonomy_id) {
-              console.log(`   Taxonomy ID: ${first.taxonomy_id}`);
-            }
-            if (first.rank) {
-              console.log(`   Taxonomic rank: ${first.rank}`);
-            }
-          }
-
-          // Show top 5 results summary
-          if (result.length > 1) {
-            const summary = result
-              .slice(0, 5)
-              .map(
-                (r) =>
-                  r.term || r.scientific_name || r.accession || r.taxonomy_id
-              )
-              .join(", ");
-            console.log(`   Top results: ${summary}`);
-          }
+      try {
+        await testFunction();
+        if (expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } else if (result) {
-        console.log(`✅ Single result:`);
-
-        // Single ontology term
-        if (result.term) {
-          console.log(`   Term: ${result.term} (${result.accession})`);
-          if (result.definition) {
-            console.log(`   Definition: ${result.definition}`);
-          }
-          if (result.synonyms && result.synonyms.length > 0) {
-            console.log(
-              `   Synonyms: ${result.synonyms.slice(0, 3).join(", ")}`
-            );
-          }
-          if (result.children && result.children.length > 0) {
-            console.log(`   Child terms: ${result.children.length}`);
-          }
-        }
-
-        // Single taxonomy entry
-        if (result.scientific_name) {
-          console.log(`   Species: ${result.scientific_name}`);
-          if (result.common_name) {
-            console.log(`   Common name: ${result.common_name}`);
-          }
-          if (result.lineage) {
-            console.log(`   Lineage: ${result.lineage.slice(-3).join(" > ")}`);
-          }
-          if (result.children && result.children.length > 0) {
-            console.log(`   Child taxa: ${result.children.length}`);
-          }
+      } catch (error) {
+        if (!expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS - Expected error: ${error.message}`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
         }
       }
-    } catch (error) {
-      console.log(`❌ Error: ${error.message}`);
+    },
+  };
+}
+
+async function runOntoTaxTests() {
+  console.log("🔬 UNIT TESTS: ensembl_ontotax tool\n");
+
+  // Positive tests (should pass)
+  await test("Search GO terms for apoptosis").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      term: "apoptosis",
+      ontology: "GO",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected array of GO terms");
     }
-  }
+    console.log(`   Found ${result.length} GO terms`);
+  });
 
-  // Test error handling
-  console.log("\n🚫 Testing error conditions:");
+  await test("Search GO terms for DNA repair").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      term: "DNA repair",
+      ontology: "GO",
+    });
 
-  try {
-    console.log("\nTesting invalid ontology ID...");
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected array of GO terms");
+    }
+    console.log(`   Found ${result.length} DNA repair terms`);
+  });
+
+  await test("Get specific GO term details").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      term_id: "GO:0006915",
+    });
+
+    if (!result) {
+      throw new Error("Expected GO term result");
+    }
+    console.log(`   Retrieved GO:0006915 details`);
+  });
+
+  await test("Search SO terms for transcript").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      term: "transcript",
+      ontology: "SO",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected SO term results");
+    }
+    console.log(`   Found ${result.length} SO transcript terms`);
+  });
+
+  await test("Get taxonomy info for human").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      ontology: "taxonomy",
+      species: "9606",
+    });
+
+    if (!result || !result.scientific_name) {
+      throw new Error("Expected human taxonomy result");
+    }
+    if (result.scientific_name !== "Homo sapiens") {
+      throw new Error(`Expected Homo sapiens, got ${result.scientific_name}`);
+    }
+    console.log(`   Species: ${result.scientific_name}`);
+  });
+
+  await test("Get taxonomy info for mouse").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      ontology: "taxonomy",
+      species: "10090",
+    });
+
+    if (!result || !result.scientific_name) {
+      throw new Error("Expected mouse taxonomy result");
+    }
+    if (result.scientific_name !== "Mus musculus") {
+      throw new Error(`Expected Mus musculus, got ${result.scientific_name}`);
+    }
+    console.log(`   Species: ${result.scientific_name}`);
+  });
+
+  await test("Search taxonomy by name").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      ontology: "taxonomy",
+      term: "Homo sapiens",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected taxonomy search results");
+    }
+    console.log(`   Found ${result.length} taxonomy results`);
+  });
+
+  await test("Search MONDO disease terms").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      term: "diabetes",
+      ontology: "MONDO",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected MONDO term results");
+    }
+    console.log(`   Found ${result.length} MONDO diabetes terms`);
+  });
+
+  await test("Search HP phenotype terms").run(async () => {
+    const result = await client.getOntologyTaxonomy({
+      term: "seizure",
+      ontology: "HP",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("Expected HP term results");
+    }
+    console.log(`   Found ${result.length} HP seizure terms`);
+  });
+
+  // Negative tests (should fail and we expect them to)
+  console.log("\n🚫 Testing error conditions (these should fail):");
+
+  await test("Invalid ontology ID", false).run(async () => {
     await client.getOntologyTaxonomy({
       term_id: "GO:9999999",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting invalid taxonomy ID...");
+  await test("Invalid taxonomy ID", false).run(async () => {
     await client.getOntologyTaxonomy({
       ontology: "taxonomy",
       species: "9999999",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting empty search term...");
+  await test("Empty search term", false).run(async () => {
     await client.getOntologyTaxonomy({
       term: "",
       ontology: "GO",
     });
+  });
+
+  await test("Missing required parameters", false).run(async () => {
+    await client.getOntologyTaxonomy({});
+  });
+}
+
+// Run tests and exit with appropriate code
+async function main() {
+  try {
+    await runOntoTaxTests();
+
+    console.log(`\n📊 TEST SUMMARY:`);
+    console.log(`   Total tests: ${totalTests}`);
+    console.log(`   Passed: ${passedTests}`);
+    console.log(`   Failed: ${failedTests}`);
+    console.log(
+      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
+    );
+
+    if (failedTests > 0) {
+      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
+      process.exit(1);
+    } else {
+      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
+      process.exit(0);
+    }
   } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
+    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+    process.exit(1);
   }
 }
 
-// Run the tests
-testOntoTax().catch(console.error);
+main();

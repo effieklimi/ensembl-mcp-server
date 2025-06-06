@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script for ensembl_compara tool
+ * UNIT TESTS for ensembl_compara tool
  * Tests comparative genomics: homology, gene trees, alignments
  */
 
@@ -9,223 +9,151 @@ import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
-async function testCompara() {
-  console.log("🔗 Testing ensembl_compara tool\n");
+// Test framework
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
 
-  const tests = [
-    {
-      name: "Find orthologs of human TP53",
-      params: {
-        gene_symbol: "TP53",
-        analysis_type: "homology",
-        species: "homo_sapiens",
-        homology_type: "orthologues",
-      },
-    },
-    {
-      name: "Find paralogs of human BRCA1",
-      params: {
-        gene_id: "ENSG00000012048",
-        analysis_type: "homology",
-        species: "homo_sapiens",
-        homology_type: "paralogues",
-      },
-    },
-    {
-      name: "Get homology for mouse Trp53",
-      params: {
-        gene_symbol: "Trp53",
-        analysis_type: "homology",
-        species: "mus_musculus",
-        target_species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Get gene tree for TP53",
-      params: {
-        gene_symbol: "TP53",
-        analysis_type: "genetree",
-        species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Get gene tree for BRCA1",
-      params: {
-        gene_symbol: "BRCA1",
-        analysis_type: "genetree",
-        species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Get CAFE tree for evolutionary analysis",
-      params: {
-        gene_symbol: "EGFR",
-        analysis_type: "cafe_tree",
-        species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Get genomic alignment for TP53 region",
-      params: {
-        region: "17:7565096-7590856",
-        analysis_type: "alignment",
-        species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Get alignment with sequences",
-      params: {
-        region: "17:7570000-7580000",
-        analysis_type: "alignment",
-        species: "homo_sapiens",
-        aligned: true,
-      },
-    },
-    {
-      name: "Find homologs in specific species",
-      params: {
-        gene_symbol: "BRCA1",
-        analysis_type: "homology",
-        species: "homo_sapiens",
-        target_species: "mus_musculus",
-      },
-    },
-    {
-      name: "Get all homology relationships for EGFR",
-      params: {
-        gene_id: "ENSG00000146648",
-        analysis_type: "homology",
-        species: "homo_sapiens",
-        homology_type: "all",
-      },
-    },
-  ];
+function test(name, expectedToPass = true) {
+  return {
+    async run(testFunction) {
+      totalTests++;
+      console.log(`\n📍 ${name}`);
 
-  for (const test of tests) {
-    try {
-      console.log(`\n📍 ${test.name}`);
-      console.log(`Parameters:`, JSON.stringify(test.params, null, 2));
-
-      const result = await client.getComparativeData(test.params);
-
-      if (result.data && Array.isArray(result.data)) {
-        const homologies = result.data;
-        console.log(`✅ Found ${homologies.length} homology relationships`);
-
-        if (homologies.length > 0) {
-          const first = homologies[0];
-          if (first.target) {
-            console.log(
-              `   First match: ${first.target.id || "Unknown"} (${
-                first.target.species || "Unknown"
-              }) - ${first.type || "Unknown"}`
-            );
-            if (first.target.perc_id) {
-              console.log(
-                `   Identity: ${first.target.perc_id}%, Coverage: ${
-                  first.target.perc_pos || "N/A"
-                }%`
-              );
-            }
-          }
-
-          // Count by species - handle both target.species and homology_type structures
-          const speciesCount = {};
-          homologies.forEach((h) => {
-            let species = null;
-            if (h.target && h.target.species) {
-              species = h.target.species;
-            } else if (h.homology_type) {
-              // Some responses might have different structure
-              species = "Various";
-            }
-
-            if (species) {
-              speciesCount[species] = (speciesCount[species] || 0) + 1;
-            }
-          });
-
-          if (Object.keys(speciesCount).length > 0) {
-            console.log(
-              `   Species distribution:`,
-              Object.entries(speciesCount)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 5)
-                .map(([species, count]) => `${species}: ${count}`)
-                .join(", ")
-            );
-          } else {
-            console.log(`   Species distribution: Data structure varies`);
-          }
+      try {
+        await testFunction();
+        if (expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } else if (result.tree) {
-        console.log(`✅ Gene tree retrieved`);
-        console.log(`   Tree ID: ${result.id || "N/A"}`);
-        if (result.tree.length) {
-          console.log(`   Tree structure: ${result.tree.substring(0, 100)}...`);
+      } catch (error) {
+        if (!expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS - Expected error: ${error.message}`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
         }
-      } else if (Array.isArray(result)) {
-        console.log(`✅ Found ${result.length} alignment blocks`);
-        if (result.length > 0) {
-          const first = result[0];
-          // Handle different alignment response structures
-          const seqRegion =
-            first.seq_region || first.seq_region_name || "Unknown";
-          const start = first.seq_region_start || first.start || "Unknown";
-          const end = first.seq_region_end || first.end || "Unknown";
-
-          console.log(`   First block: ${seqRegion}:${start}-${end}`);
-
-          if (first.alignments) {
-            console.log(`   Species in alignment: ${first.alignments.length}`);
-          } else if (first.species) {
-            console.log(`   Target species: ${first.species}`);
-          }
-        }
-      } else if (result) {
-        console.log(
-          `✅ Single result: ${JSON.stringify(result).substring(0, 100)}...`
-        );
       }
-    } catch (error) {
-      console.log(`❌ Error: ${error.message}`);
+    },
+  };
+}
+
+async function runComparaTests() {
+  console.log("🔗 UNIT TESTS: ensembl_compara tool\n");
+
+  // Positive tests
+  await test("Find orthologs of human TP53").run(async () => {
+    const result = await client.getComparativeData({
+      gene_symbol: "TP53",
+      analysis_type: "homology",
+      species: "homo_sapiens",
+      homology_type: "orthologues",
+    });
+
+    if (
+      !result.data ||
+      !Array.isArray(result.data) ||
+      result.data.length === 0
+    ) {
+      throw new Error("No orthologs found for TP53");
     }
-  }
+    console.log(`   Found ${result.data.length} ortholog relationships`);
+  });
 
-  // Test error handling
-  console.log("\n🚫 Testing error conditions:");
+  await test("Find paralogs of human BRCA1").run(async () => {
+    const result = await client.getComparativeData({
+      gene_id: "ENSG00000012048",
+      analysis_type: "homology",
+      species: "homo_sapiens",
+      homology_type: "paralogues",
+    });
 
-  try {
-    console.log("\nTesting invalid gene symbol...");
+    if (!result.data || !Array.isArray(result.data)) {
+      throw new Error("No paralogs data returned");
+    }
+    console.log(`   Found ${result.data.length} paralog relationships`);
+  });
+
+  await test("Get gene tree for TP53").run(async () => {
+    const result = await client.getComparativeData({
+      gene_symbol: "TP53",
+      analysis_type: "genetree",
+      species: "homo_sapiens",
+    });
+
+    if (!result || !result.tree) {
+      throw new Error("No gene tree returned");
+    }
+    console.log(`   Gene tree retrieved with ID: ${result.id || "N/A"}`);
+  });
+
+  await test("Get genomic alignment for TP53 region").run(async () => {
+    const result = await client.getComparativeData({
+      region: "17:7565096-7590856",
+      analysis_type: "alignment",
+      species: "homo_sapiens",
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("No alignment blocks returned");
+    }
+    console.log(`   Found ${result.length} alignment blocks`);
+  });
+
+  // Negative tests
+  console.log("\n🚫 Testing error conditions (these should fail):");
+
+  await test("Invalid gene symbol", false).run(async () => {
     await client.getComparativeData({
       gene_symbol: "FAKEGENE123",
       analysis_type: "homology",
       species: "homo_sapiens",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting missing required parameters...");
+  await test("Missing required parameters", false).run(async () => {
     await client.getComparativeData({
       analysis_type: "homology",
       species: "homo_sapiens",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting alignment without region...");
+  await test("Alignment without region", false).run(async () => {
     await client.getComparativeData({
       analysis_type: "alignment",
       species: "homo_sapiens",
     });
+  });
+}
+
+// Run tests and exit with appropriate code
+async function main() {
+  try {
+    await runComparaTests();
+
+    console.log(`\n📊 TEST SUMMARY:`);
+    console.log(`   Total tests: ${totalTests}`);
+    console.log(`   Passed: ${passedTests}`);
+    console.log(`   Failed: ${failedTests}`);
+    console.log(
+      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
+    );
+
+    if (failedTests > 0) {
+      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
+      process.exit(1);
+    } else {
+      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
+      process.exit(0);
+    }
   } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
+    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+    process.exit(1);
   }
 }
 
-// Run the tests
-testCompara().catch(console.error);
+main();

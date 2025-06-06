@@ -62,6 +62,15 @@ export class EnsemblApiClient {
     return response.json() as T;
   }
 
+  private async validateSpecies(species: string): Promise<void> {
+    try {
+      // Try to get assembly info for the species - this will fail if species is invalid
+      await this.makeRequest(`/info/assembly/${species}`);
+    } catch (error) {
+      throw new Error(`Invalid species: ${species}`);
+    }
+  }
+
   // Feature overlap methods
   async getOverlapByRegion(args: any): Promise<any> {
     const { region, species = "homo_sapiens", feature_types, biotype } = args;
@@ -125,6 +134,16 @@ export class EnsemblApiClient {
   // Protein features
   async getProteinFeatures(args: any): Promise<any> {
     const { protein_id, feature_type, species = "homo_sapiens" } = args;
+
+    if (!protein_id) {
+      throw new Error("protein_id is required");
+    }
+
+    // Validate species if provided and not default
+    if (species && species !== "homo_sapiens") {
+      await this.validateSpecies(species);
+    }
+
     const params: Record<string, string> = {};
 
     if (feature_type) {

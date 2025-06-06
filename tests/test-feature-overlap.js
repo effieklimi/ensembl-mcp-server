@@ -1,134 +1,145 @@
 #!/usr/bin/env node
 
 /**
- * Test script for ensembl_feature_overlap tool
- * Tests genomic feature overlap queries - exactly how an LLM would call them
+ * UNIT TESTS for ensembl_feature_overlap tool
+ * Tests genomic feature overlap queries
  */
 
 import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
-async function testFeatureOverlap() {
-  console.log("🧬 Testing ensembl_feature_overlap tool\n");
+// Test framework
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
 
-  const tests = [
-    {
-      name: "Find genes in BRCA1 region (chr17)",
-      params: {
-        region: "17:43000000-44000000",
-        species: "homo_sapiens",
-        feature_types: ["gene"],
-      },
-    },
-    {
-      name: "Find genes in TP53 region",
-      params: {
-        region: "17:7565096-7590856",
-        species: "homo_sapiens",
-        feature_types: ["gene"],
-      },
-    },
-    {
-      name: "Find protein-coding genes in chr1 region",
-      params: {
-        region: "1:1000000-2000000",
-        species: "homo_sapiens",
-        feature_types: ["gene"],
-        biotype: "protein_coding",
-      },
-    },
-    {
-      name: "Find overlapping features for EGFR gene",
-      params: {
-        feature_id: "ENSG00000146648",
-        species: "homo_sapiens",
-        feature_types: ["transcript"],
-      },
-    },
-    {
-      name: "Find mouse genes in Trp53 region",
-      params: {
-        region: "11:69580359-69591873",
-        species: "mus_musculus",
-        feature_types: ["gene"],
-      },
-    },
-    {
-      name: "Find transcripts in enhancer region",
-      params: {
-        region: "17:43000000-43010000",
-        species: "homo_sapiens",
-        feature_types: ["transcript"],
-      },
-    },
-    {
-      name: "Find variations in disease-associated region",
-      params: {
-        region: "17:7571720-7590856",
-        species: "homo_sapiens",
-        feature_types: ["variation"],
-      },
-    },
-  ];
+function test(name, expectedToPass = true) {
+  return {
+    async run(testFunction) {
+      totalTests++;
+      console.log(`\n📍 ${name}`);
 
-  for (const test of tests) {
-    try {
-      console.log(`\n📍 ${test.name}`);
-      console.log(`Parameters:`, JSON.stringify(test.params, null, 2));
-
-      const result = test.params.feature_id
-        ? await client.getOverlapById(test.params)
-        : await client.getOverlapByRegion(test.params);
-
-      if (Array.isArray(result)) {
-        console.log(`✅ Found ${result.length} overlapping features`);
-        if (result.length > 0) {
-          console.log(
-            `   First result: ${result[0].display_name || result[0].id} (${
-              result[0].biotype || result[0].feature_type
-            })`
-          );
-          if (result.length > 1) {
-            console.log(
-              `   Last result: ${
-                result[result.length - 1].display_name ||
-                result[result.length - 1].id
-              }`
-            );
-          }
+      try {
+        await testFunction();
+        if (expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } else {
-        console.log(`✅ Single result: ${result.display_name || result.id}`);
+      } catch (error) {
+        if (!expectedToPass) {
+          passedTests++;
+          console.log(`✅ PASS - Expected error: ${error.message}`);
+        } else {
+          failedTests++;
+          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
+        }
       }
-    } catch (error) {
-      console.log(`❌ Error: ${error.message}`);
+    },
+  };
+}
+
+async function runFeatureOverlapTests() {
+  console.log("🧬 UNIT TESTS: ensembl_feature_overlap tool\n");
+
+  // Positive tests
+  await test("Find genes in BRCA1 region").run(async () => {
+    const result = await client.getOverlapByRegion({
+      region: "17:43000000-44000000",
+      species: "homo_sapiens",
+      feature_types: ["gene"],
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("No genes found in BRCA1 region");
     }
-  }
+    console.log(`   Found ${result.length} genes`);
+  });
 
-  // Test error handling
-  console.log("\n🚫 Testing error conditions:");
+  await test("Find genes in TP53 region").run(async () => {
+    const result = await client.getOverlapByRegion({
+      region: "17:7661779-7687546",
+      species: "homo_sapiens",
+      feature_types: ["gene"],
+    });
 
-  try {
-    console.log("\nTesting invalid region format...");
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("No genes found in TP53 region");
+    }
+
+    const tp53 = result.find((g) => g.external_name === "TP53");
+    if (!tp53) {
+      throw new Error("TP53 gene not found in its own region");
+    }
+
+    console.log(`   Found ${result.length} genes including TP53`);
+  });
+
+  await test("Find transcripts by feature ID").run(async () => {
+    const result = await client.getOverlapById({
+      feature_id: "ENSG00000146648",
+      species: "homo_sapiens",
+      feature_types: ["transcript"],
+    });
+
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error("No transcripts found for EGFR");
+    }
+    console.log(`   Found ${result.length} transcripts`);
+  });
+
+  // Negative tests
+  console.log("\n🚫 Testing error conditions (these should fail):");
+
+  await test("Invalid region format", false).run(async () => {
     await client.getOverlapByRegion({
       region: "invalid-region",
       species: "homo_sapiens",
     });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
+  });
 
-  try {
-    console.log("\nTesting invalid species...");
+  await test("Invalid species", false).run(async () => {
     await client.getOverlapByRegion({
       region: "1:1000000-2000000",
       species: "invalid_species",
     });
+  });
+
+  await test("Missing required region", false).run(async () => {
+    await client.getOverlapByRegion({
+      species: "homo_sapiens",
+      feature_types: ["gene"],
+    });
+  });
+}
+
+// Run tests and exit with appropriate code
+async function main() {
+  try {
+    await runFeatureOverlapTests();
+
+    console.log(`\n📊 TEST SUMMARY:`);
+    console.log(`   Total tests: ${totalTests}`);
+    console.log(`   Passed: ${passedTests}`);
+    console.log(`   Failed: ${failedTests}`);
+    console.log(
+      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
+    );
+
+    if (failedTests > 0) {
+      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
+      process.exit(1);
+    } else {
+      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
+      process.exit(0);
+    }
   } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
+    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+    process.exit(1);
   }
 }
 
-// Run the tests
-testFeatureOverlap().catch(console.error);
+main();
