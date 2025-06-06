@@ -8,20 +8,27 @@ A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s RES
 - **Production-ready** – TypeScript throughout, robust error handling, and a tidy API-client layer.
 - **Biologist-friendly** – grouped by biological task (genes, variants, compara…), not by low-level REST paths.
 
-- Listed on the [_Smithery_](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
-- Listed on [_Glama_](https://glama.ai/mcp/servers/@effieklimi/ensembl-mcp-server)
+## Listed on:
+
+- [_Smithery_](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
+- [_Glama_](https://glama.ai/mcp/servers/@effieklimi/ensembl-mcp-server)
 
 ## Installation
 
 Choose your preferred installation method:
 
-### Option 1: Via Smithery (Recommended)
+### Option 1: Via Smithery
 
-The easiest way to get started:
+1. Visit [Smithery - Ensembl MCP Server](https://smithery.ai/server/@effieklimi/ensembl-mcp-server). The most common platform options include:
 
 ```bash
-npx @smithery/cli install @effieklimi/ensembl-mcp-server --client claude
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client claude --key your-smithery-secret-key # claude code
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client cursor --key your-smithery-secret-key # cursor
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client vscode --key cba25b51-68a8-4c7a-a66e-2015baf1a52b # vscode
+npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client windsurf --key cba25b51-68a8-4c7a-a66e-2015baf1a52b # windsurf
 ```
+
+Check the MCP's smithery link for additional platform options.
 
 ### Option 2: Via Glama
 
