@@ -5,62 +5,204 @@ const ensemblClient = new EnsemblApiClient();
 
 export const ensemblTools: Tool[] = [
   {
-    name: "get_gene_info",
+    name: "ensembl_feature_overlap",
     description:
-      "Get detailed information about a gene by its Ensembl ID or symbol",
-    inputSchema: {
-      type: "object",
-      properties: {
-        gene_identifier: {
-          type: "string",
-          description:
-            "Gene ID (e.g., ENSG00000157764) or gene symbol (e.g., BRAF)",
-        },
-        species: {
-          type: "string",
-          description: "Species name",
-          default: "homo_sapiens",
-        },
-        include_transcripts: {
-          type: "boolean",
-          description: "Whether to include transcript information",
-          default: false,
-        },
-      },
-      required: ["gene_identifier"],
-    },
-  },
-
-  {
-    name: "search_genes",
-    description: "Search for genes by symbol or external name",
-    inputSchema: {
-      type: "object",
-      properties: {
-        gene_name: {
-          type: "string",
-          description: "Gene symbol to search for (e.g., TP53, BRCA1)",
-        },
-        species: {
-          type: "string",
-          description: "Species name",
-          default: "homo_sapiens",
-        },
-      },
-      required: ["gene_name"],
-    },
-  },
-
-  {
-    name: "get_sequence",
-    description: "Get DNA sequence for a genomic region",
+      "Find genomic features (genes, transcripts, regulatory elements) that overlap with a genomic region or specific feature. Covers /overlap/region and /overlap/id endpoints.",
     inputSchema: {
       type: "object",
       properties: {
         region: {
           type: "string",
           description:
-            'Genomic region in format "chromosome:start-end" (e.g., "17:7565096-7590856")',
+            "Genomic region in format 'chromosome:start-end' (e.g., '17:7565096-7590856'). Use this OR feature_id, not both.",
+        },
+        feature_id: {
+          type: "string",
+          description:
+            "Feature ID (gene, transcript, etc.) to find overlapping features for. Use this OR region, not both.",
+        },
+        species: {
+          type: "string",
+          description: "Species name",
+          default: "homo_sapiens",
+        },
+        feature_types: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Types of features to include (e.g., ['gene', 'transcript', 'exon'])",
+        },
+        biotype: {
+          type: "string",
+          description: "Filter by biotype (e.g., 'protein_coding', 'lncRNA')",
+        },
+      },
+      oneOf: [{ required: ["region"] }, { required: ["feature_id"] }],
+    },
+  },
+
+  {
+    name: "ensembl_regulatory",
+    description:
+      "Get regulatory features, binding matrices, and regulatory annotations. Covers regulatory overlap endpoints and binding matrix data.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        region: {
+          type: "string",
+          description: "Genomic region in format 'chromosome:start-end'",
+        },
+        protein_id: {
+          type: "string",
+          description:
+            "Protein ID for regulatory features affecting translation",
+        },
+        binding_matrix_id: {
+          type: "string",
+          description: "Binding matrix stable ID",
+        },
+        species: {
+          type: "string",
+          description: "Species name",
+          default: "homo_sapiens",
+        },
+        feature_type: {
+          type: "string",
+          description:
+            "Type of regulatory feature (e.g., 'RegulatoryFeature', 'MotifFeature')",
+        },
+      },
+      anyOf: [
+        { required: ["region"] },
+        { required: ["protein_id"] },
+        { required: ["binding_matrix_id"] },
+      ],
+    },
+  },
+
+  {
+    name: "ensembl_protein_features",
+    description:
+      "Get protein-level features, domains, and annotations for proteins and translations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        protein_id: {
+          type: "string",
+          description: "Protein/translation ID (e.g., ENSP00000288602)",
+        },
+        feature_type: {
+          type: "string",
+          description:
+            "Type of protein feature (e.g., 'domain', 'signal_peptide')",
+        },
+        species: {
+          type: "string",
+          description: "Species name",
+          default: "homo_sapiens",
+        },
+      },
+      required: ["protein_id"],
+    },
+  },
+
+  {
+    name: "ensembl_meta",
+    description:
+      "Get server metadata, data releases, species info, and system status. Covers /info/* endpoints and /archive/id for version tracking.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        info_type: {
+          type: "string",
+          enum: [
+            "ping",
+            "rest",
+            "software",
+            "data",
+            "species",
+            "divisions",
+            "assembly",
+            "biotypes",
+            "analysis",
+            "external_dbs",
+            "variation",
+          ],
+          description: "Type of information to retrieve",
+        },
+        species: {
+          type: "string",
+          description: "Species name (required for species-specific info)",
+        },
+        archive_id: {
+          type: "string",
+          description:
+            "ID to get version information for (alternative to info_type)",
+        },
+        division: {
+          type: "string",
+          description: "Ensembl division name (e.g., 'vertebrates', 'plants')",
+        },
+      },
+      anyOf: [{ required: ["info_type"] }, { required: ["archive_id"] }],
+    },
+  },
+
+  {
+    name: "ensembl_lookup",
+    description:
+      "Look up genes, transcripts, variants by ID or symbol. Get cross-references and perform ID translation. Covers /lookup/* and /xrefs/* endpoints plus variant_recoder.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        identifier: {
+          type: "string",
+          description:
+            "ID or symbol to look up (gene, transcript, variant, etc.)",
+        },
+        lookup_type: {
+          type: "string",
+          enum: ["id", "symbol", "xrefs", "variant_recoder"],
+          description: "Type of lookup to perform",
+          default: "id",
+        },
+        species: {
+          type: "string",
+          description: "Species name",
+          default: "homo_sapiens",
+        },
+        expand: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Additional data to include (e.g., ['Transcript', 'Exon'])",
+        },
+        external_db: {
+          type: "string",
+          description: "External database name for xrefs lookup",
+        },
+      },
+      required: ["identifier"],
+    },
+  },
+
+  {
+    name: "ensembl_sequence",
+    description:
+      "Retrieve DNA, RNA, or protein sequences for genes, transcripts, regions. Covers /sequence/id and /sequence/region endpoints.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        identifier: {
+          type: "string",
+          description:
+            "Feature ID (gene, transcript, etc.) OR genomic region (chr:start-end)",
+        },
+        sequence_type: {
+          type: "string",
+          enum: ["genomic", "cdna", "cds", "protein"],
+          description: "Type of sequence to retrieve",
+          default: "genomic",
         },
         species: {
           type: "string",
@@ -69,25 +211,136 @@ export const ensemblTools: Tool[] = [
         },
         format: {
           type: "string",
-          description: "Output format",
           enum: ["json", "fasta"],
+          description: "Output format",
           default: "json",
         },
+        mask: {
+          type: "string",
+          enum: ["soft", "hard"],
+          description: "Mask repeats (soft=lowercase, hard=N)",
+        },
       },
-      required: ["region"],
+      required: ["identifier"],
     },
   },
 
   {
-    name: "get_variants_in_region",
-    description: "Get genetic variants in a genomic region",
+    name: "ensembl_mapping",
+    description:
+      "Map coordinates between different coordinate systems (genomic ↔ cDNA/CDS/protein) and between genome assemblies. Covers /map/* endpoints.",
     inputSchema: {
       type: "object",
       properties: {
-        region: {
+        coordinates: {
           type: "string",
           description:
-            'Genomic region in format "chromosome:start-end" (e.g., "17:7565096-7590856")',
+            "Coordinates to map (e.g., '100..200' for cDNA/CDS coords, or 'chr:start-end' for genomic)",
+        },
+        feature_id: {
+          type: "string",
+          description:
+            "Feature ID (transcript/translation) for coordinate mapping",
+        },
+        mapping_type: {
+          type: "string",
+          enum: ["cdna", "cds", "translation", "assembly"],
+          description: "Type of coordinate mapping",
+        },
+        source_assembly: {
+          type: "string",
+          description: "Source assembly name (for assembly mapping)",
+        },
+        target_assembly: {
+          type: "string",
+          description: "Target assembly name (for assembly mapping)",
+        },
+        species: {
+          type: "string",
+          description: "Species name",
+          default: "homo_sapiens",
+        },
+      },
+      required: ["coordinates", "mapping_type"],
+    },
+  },
+
+  {
+    name: "ensembl_compara",
+    description:
+      "Comparative genomics: gene trees, homology, species alignments, and evolutionary analysis. Covers /genetree/*, /homology/*, /alignment/* endpoints.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        gene_id: {
+          type: "string",
+          description: "Gene ID for homology/gene tree analysis",
+        },
+        gene_symbol: {
+          type: "string",
+          description: "Gene symbol (alternative to gene_id)",
+        },
+        region: {
+          type: "string",
+          description: "Genomic region for alignments (chr:start-end)",
+        },
+        analysis_type: {
+          type: "string",
+          enum: ["homology", "genetree", "cafe_tree", "alignment"],
+          description: "Type of comparative analysis",
+        },
+        species: {
+          type: "string",
+          description: "Species name",
+          default: "homo_sapiens",
+        },
+        target_species: {
+          type: "string",
+          description: "Target species for homology search",
+        },
+        homology_type: {
+          type: "string",
+          enum: ["orthologues", "paralogues", "all"],
+          description: "Type of homology to retrieve",
+          default: "all",
+        },
+        aligned: {
+          type: "boolean",
+          description: "Include aligned sequences",
+          default: false,
+        },
+      },
+      anyOf: [
+        { required: ["gene_id", "analysis_type"] },
+        { required: ["gene_symbol", "analysis_type"] },
+        { required: ["region", "analysis_type"] },
+      ],
+    },
+  },
+
+  {
+    name: "ensembl_variation",
+    description:
+      "Variant analysis: VEP consequence prediction, variant lookup, LD analysis, phenotype mapping, haplotypes. Covers /variation/*, /vep/*, /ld/*, /phenotype/* endpoints.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        variant_id: {
+          type: "string",
+          description: "Variant ID (e.g., rs699) or HGVS notation",
+        },
+        region: {
+          type: "string",
+          description: "Genomic region (chr:start-end) for variant search",
+        },
+        hgvs_notation: {
+          type: "string",
+          description: "HGVS notation for VEP analysis",
+        },
+        analysis_type: {
+          type: "string",
+          enum: ["variant_info", "vep", "ld", "phenotype", "haplotypes"],
+          description: "Type of variant analysis",
         },
         species: {
           type: "string",
@@ -96,138 +349,74 @@ export const ensemblTools: Tool[] = [
         },
         consequence_type: {
           type: "string",
-          description:
-            'Filter by consequence type (e.g., "missense_variant", "stop_gained")',
+          description: "Filter by consequence type",
         },
-      },
-      required: ["region"],
-    },
-  },
-
-  {
-    name: "get_variant_info",
-    description: "Get detailed information about a specific variant",
-    inputSchema: {
-      type: "object",
-      properties: {
-        variant_id: {
+        population: {
           type: "string",
-          description: "Variant ID (e.g., rs699, rs1800562)",
+          description:
+            "Population for LD analysis (e.g., '1000GENOMES:phase_3:EUR')",
         },
-      },
-      required: ["variant_id"],
-    },
-  },
-
-  {
-    name: "get_transcript_info",
-    description: "Get information about a transcript",
-    inputSchema: {
-      type: "object",
-      properties: {
         transcript_id: {
           type: "string",
-          description: "Transcript ID (e.g., ENST00000288602)",
+          description: "Transcript ID for haplotype analysis",
         },
       },
-      required: ["transcript_id"],
+      anyOf: [
+        { required: ["variant_id"] },
+        { required: ["region"] },
+        { required: ["hgvs_notation"] },
+      ],
     },
   },
 
   {
-    name: "list_species",
-    description: "Get list of all available species in Ensembl",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      required: [],
-    },
-  },
-
-  {
-    name: "get_species_info",
-    description: "Get detailed information about a species",
+    name: "ensembl_ontotax",
+    description:
+      "Ontology term search and NCBI taxonomy traversal. Search GO terms, phenotype ontologies, and taxonomic classifications.",
     inputSchema: {
       type: "object",
       properties: {
+        term: {
+          type: "string",
+          description: "Ontology term or taxonomy term to search",
+        },
+        ontology: {
+          type: "string",
+          enum: ["GO", "EFO", "HP", "MP", "taxonomy"],
+          description: "Ontology to search in",
+        },
+        term_id: {
+          type: "string",
+          description: "Specific ontology term ID (e.g., GO:0008150)",
+        },
         species: {
           type: "string",
-          description:
-            "Species name (e.g., homo_sapiens, mus_musculus) or common name (e.g., human, mouse)",
+          description: "Species for taxonomy search",
         },
-      },
-      required: ["species"],
-    },
-  },
-
-  {
-    name: "get_assembly_info",
-    description: "Get genome assembly information for a species",
-    inputSchema: {
-      type: "object",
-      properties: {
-        species: {
+        relation: {
           type: "string",
-          description: "Species name",
-          default: "homo_sapiens",
+          enum: ["children", "parents", "ancestors", "descendants"],
+          description: "Relationship to explore in ontology",
         },
       },
-      required: [],
-    },
-  },
-
-  {
-    name: "get_gene_xrefs",
-    description: "Get external database references for a gene",
-    inputSchema: {
-      type: "object",
-      properties: {
-        gene_id: {
-          type: "string",
-          description: "Gene ID (e.g., ENSG00000157764)",
-        },
-      },
-      required: ["gene_id"],
+      anyOf: [
+        { required: ["term", "ontology"] },
+        { required: ["term_id"] },
+        { required: ["species"] },
+      ],
     },
   },
 ];
 
 // Tool execution handlers
-export async function handleGetGeneInfo(args: any) {
-  const {
-    gene_identifier,
-    species = "homo_sapiens",
-    include_transcripts = false,
-  } = args;
-
+export async function handleFeatureOverlap(args: any) {
   try {
-    // Check if it's an Ensembl ID or gene symbol
-    const isEnsemblId = gene_identifier.startsWith("ENSG");
-
-    let gene;
-    if (isEnsemblId) {
-      gene = await ensemblClient.getGeneById(gene_identifier, species);
-    } else {
-      const results = await ensemblClient.searchGenes({
-        gene_name: gene_identifier,
-        species,
-      });
-      if (results.length === 0) {
-        throw new Error(`Gene '${gene_identifier}' not found`);
-      }
-      gene = results[0];
+    if (args.region) {
+      return await ensemblClient.getOverlapByRegion(args);
+    } else if (args.feature_id) {
+      return await ensemblClient.getOverlapById(args);
     }
-
-    let transcripts = null;
-    if (include_transcripts && gene?.id) {
-      transcripts = await ensemblClient.getTranscriptsForGene(gene.id);
-    }
-
-    return {
-      gene,
-      transcripts,
-      success: true,
-    };
+    throw new Error("Either region or feature_id must be provided");
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -236,16 +425,9 @@ export async function handleGetGeneInfo(args: any) {
   }
 }
 
-export async function handleSearchGenes(args: any) {
-  const { gene_name, species = "homo_sapiens" } = args;
-
+export async function handleRegulatory(args: any) {
   try {
-    const results = await ensemblClient.searchGenes({ gene_name, species });
-    return {
-      genes: results,
-      count: results.length,
-      success: true,
-    };
+    return await ensemblClient.getRegulatoryFeatures(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -254,19 +436,9 @@ export async function handleSearchGenes(args: any) {
   }
 }
 
-export async function handleGetSequence(args: any) {
-  const { region, species = "homo_sapiens", format = "json" } = args;
-
+export async function handleProteinFeatures(args: any) {
   try {
-    const sequence = await ensemblClient.getSequence({
-      region,
-      species,
-      format,
-    });
-    return {
-      sequence,
-      success: true,
-    };
+    return await ensemblClient.getProteinFeatures(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -275,20 +447,9 @@ export async function handleGetSequence(args: any) {
   }
 }
 
-export async function handleGetVariantsInRegion(args: any) {
-  const { region, species = "homo_sapiens", consequence_type } = args;
-
+export async function handleMeta(args: any) {
   try {
-    const variants = await ensemblClient.getVariantsInRegion({
-      region,
-      species,
-      consequence_type,
-    });
-    return {
-      variants,
-      count: variants.length,
-      success: true,
-    };
+    return await ensemblClient.getMetaInfo(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -297,15 +458,9 @@ export async function handleGetVariantsInRegion(args: any) {
   }
 }
 
-export async function handleGetVariantInfo(args: any) {
-  const { variant_id } = args;
-
+export async function handleLookup(args: any) {
   try {
-    const variant = await ensemblClient.getVariantById(variant_id);
-    return {
-      variant,
-      success: true,
-    };
+    return await ensemblClient.performLookup(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -314,15 +469,9 @@ export async function handleGetVariantInfo(args: any) {
   }
 }
 
-export async function handleGetTranscriptInfo(args: any) {
-  const { transcript_id } = args;
-
+export async function handleSequence(args: any) {
   try {
-    const transcript = await ensemblClient.getTranscriptById(transcript_id);
-    return {
-      transcript,
-      success: true,
-    };
+    return await ensemblClient.getSequenceData(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -331,14 +480,9 @@ export async function handleGetTranscriptInfo(args: any) {
   }
 }
 
-export async function handleListSpecies() {
+export async function handleMapping(args: any) {
   try {
-    const species = await ensemblClient.getAllSpecies();
-    return {
-      species: species.slice(0, 50), // Limit to first 50 for readability
-      total_count: species.length,
-      success: true,
-    };
+    return await ensemblClient.mapCoordinates(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -347,15 +491,9 @@ export async function handleListSpecies() {
   }
 }
 
-export async function handleGetSpeciesInfo(args: any) {
-  const { species } = args;
-
+export async function handleCompara(args: any) {
   try {
-    const speciesInfo = await ensemblClient.getSpeciesInfo(species);
-    return {
-      species: speciesInfo,
-      success: true,
-    };
+    return await ensemblClient.getComparativeData(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -364,15 +502,9 @@ export async function handleGetSpeciesInfo(args: any) {
   }
 }
 
-export async function handleGetAssemblyInfo(args: any) {
-  const { species = "homo_sapiens" } = args;
-
+export async function handleVariation(args: any) {
   try {
-    const assembly = await ensemblClient.getAssemblyInfo(species);
-    return {
-      assembly,
-      success: true,
-    };
+    return await ensemblClient.getVariationData(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",
@@ -381,16 +513,9 @@ export async function handleGetAssemblyInfo(args: any) {
   }
 }
 
-export async function handleGetGeneXrefs(args: any) {
-  const { gene_id } = args;
-
+export async function handleOntoTax(args: any) {
   try {
-    const xrefs = await ensemblClient.getGeneXrefs(gene_id);
-    return {
-      xrefs,
-      count: xrefs.length,
-      success: true,
-    };
+    return await ensemblClient.getOntologyTaxonomy(args);
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error",

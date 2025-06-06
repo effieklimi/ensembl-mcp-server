@@ -11,16 +11,16 @@ import {
 
 import {
   ensemblTools,
-  handleGetGeneInfo,
-  handleSearchGenes,
-  handleGetSequence,
-  handleGetVariantsInRegion,
-  handleGetVariantInfo,
-  handleGetTranscriptInfo,
-  handleListSpecies,
-  handleGetSpeciesInfo,
-  handleGetAssemblyInfo,
-  handleGetGeneXrefs,
+  handleFeatureOverlap,
+  handleRegulatory,
+  handleProteinFeatures,
+  handleMeta,
+  handleLookup,
+  handleSequence,
+  handleMapping,
+  handleCompara,
+  handleVariation,
+  handleOntoTax,
 } from "./handlers/tools.js";
 
 export class EnsemblMCPServer {
@@ -58,13 +58,13 @@ export class EnsemblMCPServer {
 
         try {
           switch (name) {
-            case "get_gene_info":
+            case "ensembl_feature_overlap":
               return {
                 content: [
                   {
                     type: "text",
                     text: JSON.stringify(
-                      await handleGetGeneInfo(args),
+                      await handleFeatureOverlap(args),
                       null,
                       2
                     ),
@@ -72,13 +72,23 @@ export class EnsemblMCPServer {
                 ],
               };
 
-            case "search_genes":
+            case "ensembl_regulatory":
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify(await handleRegulatory(args), null, 2),
+                  },
+                ],
+              };
+
+            case "ensembl_protein_features":
               return {
                 content: [
                   {
                     type: "text",
                     text: JSON.stringify(
-                      await handleSearchGenes(args),
+                      await handleProteinFeatures(args),
                       null,
                       2
                     ),
@@ -86,110 +96,72 @@ export class EnsemblMCPServer {
                 ],
               };
 
-            case "get_sequence":
+            case "ensembl_meta":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(
-                      await handleGetSequence(args),
-                      null,
-                      2
-                    ),
+                    text: JSON.stringify(await handleMeta(args), null, 2),
                   },
                 ],
               };
 
-            case "get_variants_in_region":
+            case "ensembl_lookup":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(
-                      await handleGetVariantsInRegion(args),
-                      null,
-                      2
-                    ),
+                    text: JSON.stringify(await handleLookup(args), null, 2),
                   },
                 ],
               };
 
-            case "get_variant_info":
+            case "ensembl_sequence":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(
-                      await handleGetVariantInfo(args),
-                      null,
-                      2
-                    ),
+                    text: JSON.stringify(await handleSequence(args), null, 2),
                   },
                 ],
               };
 
-            case "get_transcript_info":
+            case "ensembl_mapping":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(
-                      await handleGetTranscriptInfo(args),
-                      null,
-                      2
-                    ),
+                    text: JSON.stringify(await handleMapping(args), null, 2),
                   },
                 ],
               };
 
-            case "list_species":
+            case "ensembl_compara":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(await handleListSpecies(), null, 2),
+                    text: JSON.stringify(await handleCompara(args), null, 2),
                   },
                 ],
               };
 
-            case "get_species_info":
+            case "ensembl_variation":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(
-                      await handleGetSpeciesInfo(args),
-                      null,
-                      2
-                    ),
+                    text: JSON.stringify(await handleVariation(args), null, 2),
                   },
                 ],
               };
 
-            case "get_assembly_info":
+            case "ensembl_ontotax":
               return {
                 content: [
                   {
                     type: "text",
-                    text: JSON.stringify(
-                      await handleGetAssemblyInfo(args),
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-
-            case "get_gene_xrefs":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(
-                      await handleGetGeneXrefs(args),
-                      null,
-                      2
-                    ),
+                    text: JSON.stringify(await handleOntoTax(args), null, 2),
                   },
                 ],
               };
