@@ -47,7 +47,7 @@ async function runTest(testFile) {
     console.log(`${"=".repeat(80)}`);
 
     const testPath = join(__dirname, testFile);
-    const child = spawn("node", ["--loader", "ts-node/esm", testPath], {
+    const child = spawn("tsx", [testPath], {
       stdio: "inherit",
     });
 

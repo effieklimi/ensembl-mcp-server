@@ -2,11 +2,121 @@
 
 [![smithery badge](https://smithery.ai/badge/@effieklimi/ensembl-mcp-server)](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
 
-A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s REST API.
+A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s REST API. Built using the [TypeScript MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 
 - **Comprehensive coverage** – 10 tools map to functional areas instead of 100 + individual endpoints, yet still expose nearly the whole API.
 - **Production-ready** – TypeScript throughout, robust error handling, and a tidy API-client layer.
 - **Biologist-friendly** – grouped by biological task (genes, variants, compara…), not by low-level REST paths.
+
+- Listed on the [_Smithery_](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
+- Listed on [_Glama_](https://glama.ai/mcp/servers/@effieklimi/ensembl-mcp-server)
+
+## Installation
+
+Choose your preferred installation method:
+
+### Option 1: Via Smithery (Recommended)
+
+The easiest way to get started:
+
+```bash
+npx @smithery/cli install @effieklimi/ensembl-mcp-server --client claude
+```
+
+### Option 2: Via Glama
+
+Install directly through Glama:
+
+1. Visit [Glama - Ensembl MCP Server](https://glama.ai/mcp/servers/@effieklimi/ensembl-mcp-server)
+2. Follow the one-click installation instructions for your MCP client
+
+### Option 3: Local Development Setup
+
+For development or custom setups:
+
+1. **Clone and install dependencies:**
+
+   ```bash
+   git clone https://github.com/effieklimi/ensembl-mcp-server.git
+   cd ensembl-mcp-server
+   npm install
+   ```
+
+2. **Configure Claude Desktop manually:**
+
+   Edit your config file:
+
+   - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows:** `%APPDATA%/Claude/claude_desktop_config.json`
+
+   Add this server configuration:
+
+   ```json
+   {
+     "mcpServers": {
+       "ensembl": {
+         "command": "npm",
+         "args": ["run", "start"],
+         "cwd": "/absolute/path/to/ensembl-mcp-server"
+       }
+     }
+   }
+   ```
+
+3. **Restart Claude Desktop** - The Ensembl tools will appear in your available tools
+
+### Development Setup
+
+```bash
+# Development with hot reload
+npm run dev
+
+# Run tests
+npm test
+
+# Production build (optional)
+npm run build
+npm run start:prod
+```
+
+## Contributing
+
+We'd love your help! Here's how to get started:
+
+### Quick Contact
+
+- Email the dev: [effie@effie.bio](mailto:effie@effie.bio)
+
+### Development Workflow
+
+1. **Fork the repository**
+2. **Clone your fork:**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/ensembl-mcp-server.git
+   cd ensembl-mcp-server
+   ```
+3. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+4. **Run tests to make sure everything works:**
+   ```bash
+   npm test
+   ```
+5. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+6. **Make your changes and test thoroughly**
+7. **Submit a pull request**
+
+### Available Scripts
+
+- `npm run dev` - Development with hot reload
+- `npm run start` - Run the server
+- `npm test` - Run all tests
+- `npm run build` - Compile TypeScript (optional)
+- `npm run start:prod` - Run compiled version
 
 ## Use cases:
 
@@ -203,5 +313,3 @@ To install ensembl-mcp-server for Claude Desktop automatically via [Smithery](ht
 ```bash
 npx -y @smithery/cli install @effieklimi/ensembl-mcp-server --client claude
 ```
-
-Everything else in the earlier rewrite (installation, usage examples, architecture, etc.) remains unchanged—only the endpoint blocks have been reinstated verbatim. Let me know if you’d like any other tweaks!

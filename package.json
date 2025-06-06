@@ -5,27 +5,31 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "start": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' src/index.ts",
-    "dev": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --watch src/index.ts",
-    "test": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/run-all-tests.js",
-    "test:normalizer": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/input-normalizer.test.ts",
-    "test:meta": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-meta.js",
-    "test:lookup": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-lookup.js",
-    "test:sequence": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-sequence.js",
-    "test:overlap": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-feature-overlap.js",
-    "test:regulatory": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-regulatory.js",
-    "test:protein": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-protein-features.js",
-    "test:mapping": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-mapping.js",
-    "test:compara": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-compara.js",
-    "test:variation": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-variation.js",
-    "test:ontotax": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-ontotax.js"
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "start:prod": "node dist/src/index.js",
+    "start:bun": "bun src/index.ts",
+    "dev": "tsx --watch src/index.ts",
+    "dev:bun": "bun --watch src/index.ts",
+    "test": "tsx tests/run-all-tests.js",
+    "test:normalizer": "tsx tests/input-normalizer.test.ts",
+    "test:meta": "tsx tests/test-meta.js",
+    "test:lookup": "tsx tests/test-lookup.js",
+    "test:sequence": "tsx tests/test-sequence.js",
+    "test:overlap": "tsx tests/test-feature-overlap.js",
+    "test:regulatory": "tsx tests/test-regulatory.js",
+    "test:protein": "tsx tests/test-protein-features.js",
+    "test:mapping": "tsx tests/test-mapping.js",
+    "test:compara": "tsx tests/test-compara.js",
+    "test:variation": "tsx tests/test-variation.js",
+    "test:ontotax": "tsx tests/test-ontotax.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "ts-node": "^10.9.0",
+    "tsx": "^4.19.4",
     "typescript": "^5.0.0"
   },
   "keywords": [
