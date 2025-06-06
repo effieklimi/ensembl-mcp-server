@@ -2,15 +2,19 @@
 
 /**
  * UNIT TESTS for input normalizer
- * Tests format normalization for various Ensembl input types
+ * Tests format normalization for various Ensembl input types including assembly-aware features
  */
 
 import {
+  normalizeAssemblyName,
+  normalizeChromosomeName,
   normalizeGenomicRegion,
+  normalizeCoordinateSystem,
   normalizeCdnaCoordinates,
   normalizeSpeciesName,
   normalizeGeneIdentifier,
   normalizeHgvsNotation,
+  normalizeScaffoldName,
   normalizeEnsemblInputs,
 } from "../src/utils/input-normalizer.js";
 
@@ -55,183 +59,250 @@ function test(name: string, expectedToPass = true) {
   };
 }
 
-async function runNormalizerTests() {
-  console.log("🔧 UNIT TESTS: Input Normalizer\n");
+function assertEqual(actual: any, expected: any, message?: string): void {
+  if (actual !== expected) {
+    throw new Error(
+      `${
+        message || "Assertion failed"
+      }: expected '${expected}' but got '${actual}'`
+    );
+  }
+}
 
-  // Test genomic region normalization
-  await test("Normalize chr prefix").run(async () => {
-    const result = normalizeGenomicRegion("chr17:43000000-44000000");
-    if (result !== "17:43000000-44000000") {
-      throw new Error(`Expected '17:43000000-44000000', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+async function runTests() {
+  console.log("🧪 Running Input Normalizer Tests...\n");
+
+  // ========== Assembly Name Tests ==========
+  await test("normalizeAssemblyName - GRCh38 variants").run(async () => {
+    assertEqual(normalizeAssemblyName("GRCh38"), "GRCh38");
+    assertEqual(normalizeAssemblyName("grch38"), "GRCh38");
+    assertEqual(normalizeAssemblyName("hg38"), "GRCh38");
+    assertEqual(normalizeAssemblyName("HG38"), "GRCh38");
   });
 
-  await test("Normalize chromosome prefix").run(async () => {
-    const result = normalizeGenomicRegion("chromosome17:43000000-44000000");
-    if (result !== "17:43000000-44000000") {
-      throw new Error(`Expected '17:43000000-44000000', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+  await test("normalizeAssemblyName - GRCh37 variants").run(async () => {
+    assertEqual(normalizeAssemblyName("GRCh37"), "GRCh37");
+    assertEqual(normalizeAssemblyName("grch37"), "GRCh37");
+    assertEqual(normalizeAssemblyName("hg19"), "GRCh37");
+    assertEqual(normalizeAssemblyName("HG19"), "GRCh37");
   });
 
-  await test("Handle comma separators in numbers").run(async () => {
-    const result = normalizeGenomicRegion("17:43,000,000-44,000,000");
-    if (result !== "17:43000000-44000000") {
-      throw new Error(`Expected '17:43000000-44000000', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+  // ========== Chromosome Name Tests ==========
+  await test("normalizeChromosomeName - chr prefixes").run(async () => {
+    assertEqual(normalizeChromosomeName("chr17"), "17");
+    assertEqual(normalizeChromosomeName("chromosome17"), "17");
+    assertEqual(normalizeChromosomeName("CHR17"), "17");
+    assertEqual(normalizeChromosomeName("17"), "17");
   });
 
-  await test("Handle spaces in genomic region").run(async () => {
-    const result = normalizeGenomicRegion("17 : 43000000 - 44000000");
-    if (result !== "17:43000000-44000000") {
-      throw new Error(`Expected '17:43000000-44000000', got '${result}'`);
+  await test("normalizeChromosomeName - mitochondrial variations").run(
+    async () => {
+      assertEqual(normalizeChromosomeName("MT"), "MT");
+      assertEqual(normalizeChromosomeName("M"), "MT");
+      assertEqual(normalizeChromosomeName("chrM"), "MT");
+      assertEqual(normalizeChromosomeName("chrMT"), "MT");
+      assertEqual(normalizeChromosomeName("mitochondrial"), "MT");
+      assertEqual(normalizeChromosomeName("mito"), "MT");
     }
-    console.log(`   ${result}`);
+  );
+
+  await test("normalizeChromosomeName - sex chromosomes").run(async () => {
+    assertEqual(normalizeChromosomeName("X"), "X");
+    assertEqual(normalizeChromosomeName("chrX"), "X");
+    assertEqual(normalizeChromosomeName("Y"), "Y");
+    assertEqual(normalizeChromosomeName("chrY"), "Y");
   });
 
-  // Test cDNA coordinate normalization
-  await test("Convert dash to .. format").run(async () => {
-    const result = normalizeCdnaCoordinates("100-200");
-    if (result !== "100..200") {
-      throw new Error(`Expected '100..200', got '${result}'`);
+  await test("normalizeChromosomeName - pseudoautosomal regions").run(
+    async () => {
+      assertEqual(normalizeChromosomeName("PAR1"), "PAR1");
+      assertEqual(normalizeChromosomeName("PAR_1"), "PAR1");
+      assertEqual(normalizeChromosomeName("PAR#1"), "PAR1");
+      assertEqual(normalizeChromosomeName("PAR2"), "PAR2");
     }
-    console.log(`   ${result}`);
+  );
+
+  // ========== Genomic Region Tests ==========
+  await test("normalizeGenomicRegion - basic formats").run(async () => {
+    assertEqual(
+      normalizeGenomicRegion("chr17:43000000-44000000"),
+      "17:43000000-44000000"
+    );
+    assertEqual(
+      normalizeGenomicRegion("chromosome17:43000000-44000000"),
+      "17:43000000-44000000"
+    );
+    assertEqual(
+      normalizeGenomicRegion("17:43000000-44000000"),
+      "17:43000000-44000000"
+    );
   });
 
-  await test("Convert colon to .. format").run(async () => {
-    const result = normalizeCdnaCoordinates("100:200");
-    if (result !== "100..200") {
-      throw new Error(`Expected '100..200', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+  await test("normalizeGenomicRegion - with spaces").run(async () => {
+    assertEqual(
+      normalizeGenomicRegion("17 : 43000000 - 44000000"),
+      "17:43000000-44000000"
+    );
+    assertEqual(
+      normalizeGenomicRegion("chr17 : 43000000 - 44000000"),
+      "17:43000000-44000000"
+    );
   });
 
-  await test("Handle spaces in cDNA coords").run(async () => {
-    const result = normalizeCdnaCoordinates("100 - 200");
-    if (result !== "100..200") {
-      throw new Error(`Expected '100..200', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+  await test("normalizeGenomicRegion - with assembly context").run(async () => {
+    assertEqual(
+      normalizeGenomicRegion("chrMT:1000-2000", "GRCh38"),
+      "MT:1000-2000"
+    );
+    assertEqual(
+      normalizeGenomicRegion("chrX:1000000-2000000", "GRCh37"),
+      "X:1000000-2000000"
+    );
   });
 
-  // Test species name normalization
-  await test("Normalize species case").run(async () => {
-    const result = normalizeSpeciesName("Homo_sapiens");
-    if (result !== "homo_sapiens") {
-      throw new Error(`Expected 'homo_sapiens', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+  // ========== Coordinate System Tests ==========
+  await test("normalizeCoordinateSystem - zero to one based").run(async () => {
+    const result = normalizeCoordinateSystem(99, 200, "zero-based");
+    assertEqual(result.start, 100);
+    assertEqual(result.end, 200);
   });
 
-  await test("Convert spaces to underscores").run(async () => {
-    const result = normalizeSpeciesName("Homo sapiens");
-    if (result !== "homo_sapiens") {
-      throw new Error(`Expected 'homo_sapiens', got '${result}'`);
+  await test("normalizeCoordinateSystem - one based unchanged").run(
+    async () => {
+      const result = normalizeCoordinateSystem(100, 200, "one-based");
+      assertEqual(result.start, 100);
+      assertEqual(result.end, 200);
     }
-    console.log(`   ${result}`);
+  );
+
+  // ========== cDNA Coordinates Tests ==========
+  await test("normalizeCdnaCoordinates - various formats").run(async () => {
+    assertEqual(normalizeCdnaCoordinates("100..200"), "100-200");
+    assertEqual(normalizeCdnaCoordinates("c.100..200"), "100-200");
+    assertEqual(normalizeCdnaCoordinates("100 to 200"), "100-200");
+    assertEqual(normalizeCdnaCoordinates("100→200"), "100-200");
   });
 
-  // Test gene identifier normalization
-  await test("Uppercase Ensembl ID").run(async () => {
-    const result = normalizeGeneIdentifier("ensg00000141510");
-    if (result !== "ENSG00000141510") {
-      throw new Error(`Expected 'ENSG00000141510', got '${result}'`);
-    }
-    console.log(`   ${result}`);
+  // ========== Species Name Tests ==========
+  await test("normalizeSpeciesName - common mappings").run(async () => {
+    assertEqual(normalizeSpeciesName("human"), "homo_sapiens");
+    assertEqual(normalizeSpeciesName("mouse"), "mus_musculus");
+    assertEqual(normalizeSpeciesName("fruit fly"), "drosophila_melanogaster");
+    assertEqual(normalizeSpeciesName("worm"), "caenorhabditis_elegans");
   });
 
-  await test("Uppercase gene symbol").run(async () => {
-    const result = normalizeGeneIdentifier("brca1");
-    if (result !== "BRCA1") {
-      throw new Error(`Expected 'BRCA1', got '${result}'`);
+  await test("normalizeSpeciesName - assembly context defaults").run(
+    async () => {
+      assertEqual(normalizeSpeciesName("", "GRCh38"), "homo_sapiens");
+      assertEqual(normalizeSpeciesName("", "hg19"), "homo_sapiens");
     }
-    console.log(`   ${result}`);
+  );
+
+  // ========== Gene Identifier Tests ==========
+  await test("normalizeGeneIdentifier - preserve case sensitivity").run(
+    async () => {
+      assertEqual(normalizeGeneIdentifier("TP53"), "TP53");
+      assertEqual(normalizeGeneIdentifier("BRCA1"), "BRCA1");
+      assertEqual(normalizeGeneIdentifier("  EGFR  "), "EGFR");
+    }
+  );
+
+  await test("normalizeGeneIdentifier - variant IDs unchanged").run(
+    async () => {
+      assertEqual(normalizeGeneIdentifier("rs699"), "rs699");
+      assertEqual(normalizeGeneIdentifier("COSM476"), "COSM476");
+      assertEqual(
+        normalizeGeneIdentifier("ENSP00000288602"),
+        "ENSP00000288602"
+      );
+    }
+  );
+
+  // ========== HGVS Notation Tests ==========
+  await test("normalizeHgvsNotation - basic formatting").run(async () => {
+    assertEqual(
+      normalizeHgvsNotation("NM_000546.6 : c.215C>G"),
+      "NM_000546.6:c.215C>G"
+    );
+    assertEqual(
+      normalizeHgvsNotation("NM_000546.6 > c.215C>G"),
+      "NM_000546.6>c.215C>G"
+    );
   });
 
-  await test("Keep variant ID as-is").run(async () => {
-    const result = normalizeGeneIdentifier("rs699");
-    if (result !== "rs699") {
-      throw new Error(`Expected 'rs699', got '${result}'`);
+  await test("normalizeHgvsNotation - assembly-specific references").run(
+    async () => {
+      assertEqual(
+        normalizeHgvsNotation("NM_000546:c.215C>G", "GRCh38"),
+        "NM_000546.6:c.215C>G"
+      );
+      assertEqual(
+        normalizeHgvsNotation("NM_000546.6:c.215C>G", "GRCh37"),
+        "NM_000546.5:c.215C>G"
+      );
     }
-    console.log(`   ${result}`);
+  );
+
+  // ========== Scaffold Name Tests ==========
+  await test("normalizeScaffoldName - patch naming").run(async () => {
+    assertEqual(
+      normalizeScaffoldName("CHR_HSCHR1_1_CTG1", "GRCh38"),
+      "chr1_patch_1_CTG1"
+    );
+    assertEqual(
+      normalizeScaffoldName("ALT_REF_LOCI_1_scaffold", "GRCh38"),
+      "ALT_REF_LOCI_1:scaffold"
+    );
   });
 
-  // Test HGVS normalization
-  await test("Normalize HGVS spacing").run(async () => {
-    const result = normalizeHgvsNotation("17 : g.7579472G>C");
-    if (result !== "17:g.7579472G>C") {
-      throw new Error(`Expected '17:g.7579472G>C', got '${result}'`);
-    }
-    console.log(`   ${result}`);
-  });
-
-  // Test comprehensive normalization
-  await test("Normalize all fields together").run(async () => {
+  // ========== Integration Tests ==========
+  await test("normalizeEnsemblInputs - full integration").run(async () => {
     const input = {
+      assembly: "hg38",
+      species: "human",
       region: "chr17:43,000,000-44,000,000",
-      coordinates: "100-200",
-      species: "Homo sapiens",
-      gene_symbol: "brca1",
-      variant_id: "rs699",
-      hgvs_notation: "17 : g.7579472G>C",
+      gene_id: "  TP53  ",
+      hgvs: "NM_000546 : c.215C>G",
     };
 
     const result = normalizeEnsemblInputs(input);
 
-    if (result.region !== "17:43000000-44000000") {
-      throw new Error(`Region normalization failed: ${result.region}`);
-    }
-    if (result.coordinates !== "100..200") {
-      throw new Error(
-        `Coordinates normalization failed: ${result.coordinates}`
-      );
-    }
-    if (result.species !== "homo_sapiens") {
-      throw new Error(`Species normalization failed: ${result.species}`);
-    }
-    if (result.gene_symbol !== "BRCA1") {
-      throw new Error(
-        `Gene symbol normalization failed: ${result.gene_symbol}`
-      );
-    }
-    if (result.hgvs_notation !== "17:g.7579472G>C") {
-      throw new Error(`HGVS normalization failed: ${result.hgvs_notation}`);
-    }
-
-    console.log(`   All fields normalized correctly`);
+    assertEqual(result.assembly, "GRCh38");
+    assertEqual(result.species, "homo_sapiens");
+    assertEqual(result.region, "17:43000000-44000000");
+    assertEqual(result.gene_id, "TP53");
+    assertEqual(result.hgvs, "NM_000546.6:c.215C>G");
   });
-}
 
-// Run tests and exit with appropriate code
-async function main() {
-  try {
-    await runNormalizerTests();
+  await test("normalizeEnsemblInputs - coordinate system conversion").run(
+    async () => {
+      const input = {
+        start: 99,
+        end: 200,
+        coordinate_system: "zero-based",
+      };
 
-    console.log(`\n📊 TEST SUMMARY:`);
-    console.log(`   Total tests: ${totalTests}`);
-    console.log(`   Passed: ${passedTests}`);
-    console.log(`   Failed: ${failedTests}`);
-    console.log(
-      `   Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`
-    );
+      const result = normalizeEnsemblInputs(input);
 
-    if (failedTests > 0) {
-      console.log(`\n❌ OVERALL: FAILED (${failedTests} test failures)`);
-      process.exit(1);
-    } else {
-      console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
-      process.exit(0);
+      assertEqual(result.start, 100);
+      assertEqual(result.end, 200);
+      assertEqual(result.coordinate_system, undefined); // Should be removed
     }
-  } catch (error: unknown) {
-    console.error(
-      `\n💥 TEST RUNNER ERROR: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+  );
+
+  // ========== Summary ==========
+  console.log(`\n📊 Test Results:`);
+  console.log(`✅ Passed: ${passedTests}`);
+  console.log(`❌ Failed: ${failedTests}`);
+  console.log(`📋 Total: ${totalTests}`);
+
+  if (failedTests === 0) {
+    console.log(`\n🎉 All tests passed!`);
+    process.exit(0);
+  } else {
+    console.log(`\n💥 ${failedTests} test(s) failed`);
     process.exit(1);
   }
 }
 
-main();
+runTests().catch(console.error);

@@ -8,7 +8,7 @@ export const ensemblTools: Tool[] = [
   {
     name: "ensembl_feature_overlap",
     description:
-      "Find genomic features (genes, transcripts, regulatory elements) that overlap with a genomic region or specific feature. Covers /overlap/region and /overlap/id endpoints.",
+      "Find genomic features (genes, transcripts, regulatory elements) that overlap with a genomic region or specific feature. Automatically handles assembly-specific format variations (GRCh38/hg38, chromosome naming conventions, coordinate systems). Covers /overlap/region and /overlap/id endpoints.",
     inputSchema: {
       type: "object",
       properties: {
