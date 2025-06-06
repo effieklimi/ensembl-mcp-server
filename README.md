@@ -174,6 +174,78 @@ Ontology term search and NCBI taxonomy traversal.
 
 **Use cases:** GO term search, phenotype ontologies, taxonomic classification
 
+## Testing
+
+The server includes comprehensive test suites for all 10 tools with realistic biological examples.
+
+### Run All Tests
+
+```bash
+npm test
+```
+
+This runs the complete test suite covering all tools with:
+
+- ✅ **120+ test cases** with real genomic data
+- 🧬 **Realistic biological examples** (BRCA1, TP53, EGFR, etc.)
+- 🚫 **Error condition testing**
+- ⏱️ **Performance timing**
+- 📊 **Detailed summary report**
+
+### Run Individual Tool Tests
+
+```bash
+# Test specific tools
+npm run test:lookup      # ID/symbol lookup tests
+npm run test:sequence    # Sequence retrieval tests
+npm run test:variation   # Variant analysis tests
+npm run test:compara     # Comparative genomics tests
+npm run test:meta        # Server metadata tests
+npm run test:overlap     # Feature overlap tests
+npm run test:regulatory  # Regulatory feature tests
+npm run test:protein     # Protein feature tests
+npm run test:mapping     # Coordinate mapping tests
+npm run test:ontotax     # Ontology/taxonomy tests
+```
+
+### Example Test Output
+
+```bash
+🧬 Testing ensembl_lookup tool
+
+📍 Look up BRCA1 gene by symbol
+Parameters: {
+  "identifier": "BRCA1",
+  "lookup_type": "symbol",
+  "species": "homo_sapiens",
+  "expand": ["Transcript"]
+}
+✅ Single result: BRCA1 (ENSG00000012048)
+   Description: BRCA1 DNA repair associated [Source:HGNC Symbol;Acc:HGNC:1100]
+   Location: 17:43044295-43170245
+   Biotype: protein_coding
+
+📍 Variant recoding for rs699
+Parameters: {
+  "identifier": "rs699",
+  "lookup_type": "variant_recoder",
+  "species": "homo_sapiens"
+}
+✅ Single result: rs699
+   HGVS genomic: 1:g.230710048A>G
+   Variant class: SNV
+```
+
+### Test Data
+
+Tests use **real biological data**:
+
+- 🧬 **Human genes**: BRCA1, TP53, EGFR, etc.
+- 🐭 **Mouse orthologs**: Trp53, Brca1
+- 🔬 **Variants**: rs699, rs1800562 (clinically relevant)
+- 📍 **Genomic regions**: Real chromosome coordinates
+- 🧪 **Proteins**: Ensembl protein IDs with known domains
+
 ## Installation
 
 ### Prerequisites

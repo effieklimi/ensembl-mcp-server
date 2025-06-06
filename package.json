@@ -1,16 +1,31 @@
 {
-  "name": "ensembl-mcp",
+  "name": "ensembl-mcp-server",
   "version": "1.0.0",
-  "description": "Model Context Protocol server for Ensembl genomics API",
-  "main": "dist/index.js",
-  "module": "src/index.ts",
+  "description": "Model Context Protocol server for Ensembl genomics database",
   "type": "module",
-  "private": true,
+  "main": "index.ts",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node",
-    "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts",
-    "test": "bun test"
+    "start": "node --loader ts-node/esm src/index.ts",
+    "dev": "node --loader ts-node/esm --watch src/index.ts",
+    "test": "node tests/run-all-tests.js",
+    "test:meta": "node tests/test-meta.js",
+    "test:lookup": "node tests/test-lookup.js",
+    "test:sequence": "node tests/test-sequence.js",
+    "test:overlap": "node tests/test-feature-overlap.js",
+    "test:regulatory": "node tests/test-regulatory.js",
+    "test:protein": "node tests/test-protein-features.js",
+    "test:mapping": "node tests/test-mapping.js",
+    "test:compara": "node tests/test-compara.js",
+    "test:variation": "node tests/test-variation.js",
+    "test:ontotax": "node tests/test-ontotax.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
   },
   "keywords": [
     "mcp",
@@ -18,15 +33,6 @@
     "genomics",
     "bioinformatics"
   ],
-  "author": "Your Name",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.1"
-  }
+  "author": "",
+  "license": "MIT"
 }
