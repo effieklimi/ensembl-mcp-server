@@ -2,6 +2,10 @@
 
 A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s REST API.
 
+- **Comprehensive coverage** – 10 tools map to functional areas instead of 100 + individual endpoints, yet still expose nearly the whole API.
+- **Production-ready** – TypeScript throughout, robust error handling, and a tidy API-client layer.
+- **Biologist-friendly** – grouped by biological task (genes, variants, compara…), not by low-level REST paths.
+
 ## Use cases:
 
 - 🧬 **Gene information** – fetch details by ID or symbol
@@ -12,10 +16,6 @@ A full-featured Model Context Protocol (MCP) server that exposes Ensembl’s RES
 - 🌍 **Multi-species** – every species in Ensembl, right here
 - 🔗 **Cross-references** – hop to external databases in one call
 - ⚡ **Rate-limited** – built-in throttling keeps you within Ensembl limits
-
-- **Comprehensive coverage** – 10 tools map to functional areas instead of 100 + individual endpoints, yet still expose nearly the whole API.
-- **Production-ready** – TypeScript throughout, robust error handling, and a tidy API-client layer.
-- **Biologist-friendly** – grouped by biological task (genes, variants, compara…), not by low-level REST paths.
 
 ---
 
