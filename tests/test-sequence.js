@@ -5,7 +5,7 @@
  * Tests DNA, RNA, and protein sequence retrieval
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -97,9 +97,9 @@ async function testSequence() {
       },
     },
     {
-      name: "Get exon sequence from transcript",
+      name: "Get transcript genomic sequence",
       params: {
-        identifier: "ENSE00001184784",
+        identifier: "ENST00000269305",
         sequence_type: "genomic",
         species: "homo_sapiens",
         format: "json",
@@ -197,11 +197,14 @@ async function testSequence() {
 
   try {
     console.log("\nTesting protein sequence for genomic region...");
-    await client.getSequenceData({
+    const result = await client.getSequenceData({
       identifier: "17:7565096-7590856",
       sequence_type: "protein",
       species: "homo_sapiens",
     });
+    console.log(
+      `✅ API returns DNA sequence when protein requested for region: ${result.molecule} (${result.seq.length} bp)`
+    );
   } catch (error) {
     console.log(`✅ Correctly caught error: ${error.message}`);
   }

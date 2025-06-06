@@ -5,7 +5,7 @@
  * Tests ontology term search and NCBI taxonomy queries
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -16,90 +16,84 @@ async function testOntoTax() {
     {
       name: "Search GO terms for apoptosis",
       params: {
-        query_type: "ontology",
-        search_term: "apoptosis",
+        term: "apoptosis",
+        ontology: "GO",
       },
     },
     {
       name: "Search GO terms for DNA repair",
       params: {
-        query_type: "ontology",
-        search_term: "DNA repair",
+        term: "DNA repair",
+        ontology: "GO",
       },
     },
     {
       name: "Get specific GO term details",
       params: {
-        query_type: "ontology",
-        ontology_id: "GO:0006915",
+        term_id: "GO:0006915",
       },
     },
     {
       name: "Search SO terms for transcript",
       params: {
-        query_type: "ontology",
-        search_term: "transcript",
+        term: "transcript",
         ontology: "SO",
       },
     },
     {
       name: "Get taxonomy info for human",
       params: {
-        query_type: "taxonomy",
-        taxonomy_id: "9606",
+        ontology: "taxonomy",
+        species: "9606",
       },
     },
     {
       name: "Get taxonomy info for mouse",
       params: {
-        query_type: "taxonomy",
-        taxonomy_id: "10090",
+        ontology: "taxonomy",
+        species: "10090",
       },
     },
     {
       name: "Search taxonomy by name",
       params: {
-        query_type: "taxonomy",
-        search_term: "Homo sapiens",
+        ontology: "taxonomy",
+        term: "Homo sapiens",
       },
     },
     {
       name: "Search for primate taxonomy",
       params: {
-        query_type: "taxonomy",
-        search_term: "Primates",
+        ontology: "taxonomy",
+        term: "Primates",
       },
     },
     {
-      name: "Get descendants of mammals",
+      name: "Get taxonomy info for mammals",
       params: {
-        query_type: "taxonomy",
-        taxonomy_id: "40674",
-        include_descendants: true,
+        ontology: "taxonomy",
+        species: "40674",
       },
     },
     {
-      name: "Search EFO terms for cancer",
+      name: "Search more GO terms for DNA binding",
       params: {
-        query_type: "ontology",
-        search_term: "cancer",
-        ontology: "EFO",
+        term: "DNA binding",
+        ontology: "GO",
       },
     },
     {
       name: "Search MONDO disease terms",
       params: {
-        query_type: "ontology",
-        search_term: "diabetes",
+        term: "diabetes",
         ontology: "MONDO",
       },
     },
     {
-      name: "Get ancestors of human taxonomy",
+      name: "Search HP phenotype terms",
       params: {
-        query_type: "taxonomy",
-        taxonomy_id: "9606",
-        include_ancestors: true,
+        term: "seizure",
+        ontology: "HP",
       },
     },
   ];
@@ -200,8 +194,7 @@ async function testOntoTax() {
   try {
     console.log("\nTesting invalid ontology ID...");
     await client.getOntologyTaxonomy({
-      query_type: "ontology",
-      ontology_id: "GO:9999999",
+      term_id: "GO:9999999",
     });
   } catch (error) {
     console.log(`✅ Correctly caught error: ${error.message}`);
@@ -210,8 +203,8 @@ async function testOntoTax() {
   try {
     console.log("\nTesting invalid taxonomy ID...");
     await client.getOntologyTaxonomy({
-      query_type: "taxonomy",
-      taxonomy_id: "9999999",
+      ontology: "taxonomy",
+      species: "9999999",
     });
   } catch (error) {
     console.log(`✅ Correctly caught error: ${error.message}`);
@@ -220,8 +213,8 @@ async function testOntoTax() {
   try {
     console.log("\nTesting empty search term...");
     await client.getOntologyTaxonomy({
-      query_type: "ontology",
-      search_term: "",
+      term: "",
+      ontology: "GO",
     });
   } catch (error) {
     console.log(`✅ Correctly caught error: ${error.message}`);

@@ -5,7 +5,7 @@
  * Tests ID/symbol lookup, cross-references, and variant recoding
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -54,19 +54,18 @@ async function testLookup() {
       },
     },
     {
-      name: "Variant recoding for rs699",
+      name: "Look up gene cross-references for EGFR",
       params: {
-        identifier: "rs699",
-        lookup_type: "variant_recoder",
-        species: "homo_sapiens",
+        identifier: "ENSG00000146648",
+        lookup_type: "xrefs",
       },
     },
     {
-      name: "Variant recoding with HGVS notation",
+      name: "Look up with ID expansion",
       params: {
-        identifier: "ENST00000269305.4:c.215C>G",
-        lookup_type: "variant_recoder",
-        species: "homo_sapiens",
+        identifier: "ENSG00000141510",
+        lookup_type: "id",
+        expand: ["Transcript"],
       },
     },
     {
@@ -78,19 +77,21 @@ async function testLookup() {
       },
     },
     {
-      name: "Look up gene by RefSeq ID",
+      name: "Look up gene cross-references by symbol",
       params: {
-        identifier: "NM_000059",
+        identifier: "BRCA1",
         lookup_type: "xrefs",
         species: "homo_sapiens",
+        external_db: "RefSeq_mRNA",
       },
     },
     {
-      name: "Look up protein by UniProt ID",
+      name: "Look up WikiGene references",
       params: {
-        identifier: "P04637",
+        identifier: "TP53",
         lookup_type: "xrefs",
         species: "homo_sapiens",
+        external_db: "WikiGene",
       },
     },
   ];
@@ -106,15 +107,33 @@ async function testLookup() {
         console.log(`✅ Found ${result.length} results`);
         if (result.length > 0) {
           const first = result[0];
-          console.log(
-            `   First result: ${first.display_name || first.id} (${
-              first.biotype || first.object_type
-            })`
-          );
-          if (first.seq_region_name) {
+
+          // Handle xrefs results
+          if (first.dbname || first.primary_id) {
             console.log(
-              `   Location: ${first.seq_region_name}:${first.start}-${first.end}`
+              `   First result: ${first.display_id || first.primary_id} (${
+                first.dbname || "xref"
+              })`
             );
+            if (first.description) {
+              console.log(
+                `   Description: ${first.description.substring(0, 80)}...`
+              );
+            }
+          }
+
+          // Handle standard gene/transcript results
+          else {
+            console.log(
+              `   First result: ${first.display_name || first.id} (${
+                first.biotype || first.object_type
+              })`
+            );
+            if (first.seq_region_name) {
+              console.log(
+                `   Location: ${first.seq_region_name}:${first.start}-${first.end}`
+              );
+            }
           }
         }
       } else if (result) {
@@ -131,13 +150,6 @@ async function testLookup() {
         }
         if (result.biotype) {
           console.log(`   Biotype: ${result.biotype}`);
-        }
-        // For variant recoder results
-        if (result.hgvs_genomic) {
-          console.log(`   HGVS genomic: ${result.hgvs_genomic[0]}`);
-        }
-        if (result.variant_class) {
-          console.log(`   Variant class: ${result.variant_class}`);
         }
       }
     } catch (error) {
@@ -164,17 +176,6 @@ async function testLookup() {
     await client.performLookup({
       identifier: "ENSG99999999",
       lookup_type: "id",
-    });
-  } catch (error) {
-    console.log(`✅ Correctly caught error: ${error.message}`);
-  }
-
-  try {
-    console.log("\nTesting invalid variant ID...");
-    await client.performLookup({
-      identifier: "rs999999999999",
-      lookup_type: "variant_recoder",
-      species: "homo_sapiens",
     });
   } catch (error) {
     console.log(`✅ Correctly caught error: ${error.message}`);

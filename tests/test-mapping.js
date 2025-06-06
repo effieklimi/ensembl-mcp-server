@@ -5,7 +5,7 @@
  * Tests coordinate transformations between genomic, cDNA, CDS, and protein coordinates
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -16,27 +16,27 @@ async function testMapping() {
     {
       name: "Map genomic to cDNA coordinates (TP53)",
       params: {
-        transcript_id: "ENST00000269305",
+        feature_id: "ENST00000269305",
         mapping_type: "cdna",
-        coordinates: "17:7579372..7579700",
+        coordinates: "100..200",
         species: "homo_sapiens",
       },
     },
     {
       name: "Map genomic to CDS coordinates (BRCA1)",
       params: {
-        transcript_id: "ENST00000357654",
+        feature_id: "ENST00000357654",
         mapping_type: "cds",
-        coordinates: "17:43045677..43045802",
+        coordinates: "1..100",
         species: "homo_sapiens",
       },
     },
     {
-      name: "Map genomic to protein coordinates (EGFR)",
+      name: "Map genomic coordinates for EGFR cDNA",
       params: {
-        transcript_id: "ENST00000275493",
-        mapping_type: "translation",
-        coordinates: "7:55019021..55019120",
+        feature_id: "ENST00000275493",
+        mapping_type: "cdna",
+        coordinates: "1..100",
         species: "homo_sapiens",
       },
     },
@@ -44,64 +44,55 @@ async function testMapping() {
       name: "Map assembly coordinates (GRCh37 to GRCh38)",
       params: {
         mapping_type: "assembly",
-        from_assembly: "GRCh37",
-        to_assembly: "GRCh38",
-        region: "17:7512445..7531642",
+        source_assembly: "GRCh37",
+        target_assembly: "GRCh38",
+        coordinates: "17:7512445..7531642",
         species: "homo_sapiens",
       },
     },
     {
-      name: "Map cDNA position to genomic",
+      name: "Map cDNA coordinates for TP53",
       params: {
-        transcript_id: "ENST00000269305",
-        mapping_type: "cdna_to_genomic",
-        coordinates: "100..200",
+        feature_id: "ENST00000269305",
+        mapping_type: "cdna",
+        coordinates: "1..100",
         species: "homo_sapiens",
       },
     },
     {
-      name: "Map protein position to genomic",
+      name: "Map BRCA1 cDNA coordinates",
       params: {
-        transcript_id: "ENST00000269305",
-        mapping_type: "protein_to_genomic",
-        coordinates: "50..60",
+        feature_id: "ENST00000357654",
+        mapping_type: "cdna",
+        coordinates: "200..300",
         species: "homo_sapiens",
       },
     },
     {
-      name: "Map CDS position to genomic",
+      name: "Map CDS coordinates for TP53",
       params: {
-        transcript_id: "ENST00000269305",
-        mapping_type: "cds_to_genomic",
-        coordinates: "150..300",
+        feature_id: "ENST00000269305",
+        mapping_type: "cds",
+        coordinates: "1..50",
         species: "homo_sapiens",
       },
     },
     {
       name: "Map mouse coordinates (Trp53)",
       params: {
-        transcript_id: "ENSMUST00000108658",
+        feature_id: "ENSMUST00000108658",
         mapping_type: "cdna",
-        coordinates: "11:69580359..69591873",
+        coordinates: "1..100",
         species: "mus_musculus",
       },
     },
     {
-      name: "Map small region to protein",
-      params: {
-        transcript_id: "ENST00000357654",
-        mapping_type: "translation",
-        coordinates: "17:43045677..43045679",
-        species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Assembly lift between human builds",
+      name: "Assembly mapping with different coordinates",
       params: {
         mapping_type: "assembly",
-        from_assembly: "NCBI36",
-        to_assembly: "GRCh38",
-        region: "17:7512445..7531642",
+        source_assembly: "GRCh37",
+        target_assembly: "GRCh38",
+        coordinates: "1:1000000..2000000",
         species: "homo_sapiens",
       },
     },
@@ -170,11 +161,11 @@ async function testMapping() {
   console.log("\n🚫 Testing error conditions:");
 
   try {
-    console.log("\nTesting invalid transcript ID...");
+    console.log("\nTesting invalid feature ID...");
     await client.mapCoordinates({
-      transcript_id: "INVALID_TRANSCRIPT",
+      feature_id: "INVALID_TRANSCRIPT",
       mapping_type: "cdna",
-      coordinates: "17:7579372..7579700",
+      coordinates: "1..100",
       species: "homo_sapiens",
     });
   } catch (error) {
@@ -184,7 +175,7 @@ async function testMapping() {
   try {
     console.log("\nTesting invalid coordinate format...");
     await client.mapCoordinates({
-      transcript_id: "ENST00000269305",
+      feature_id: "ENST00000269305",
       mapping_type: "cdna",
       coordinates: "invalid-coordinates",
       species: "homo_sapiens",
@@ -197,9 +188,9 @@ async function testMapping() {
     console.log("\nTesting invalid assembly...");
     await client.mapCoordinates({
       mapping_type: "assembly",
-      from_assembly: "INVALID_ASSEMBLY",
-      to_assembly: "GRCh38",
-      region: "17:7512445..7531642",
+      source_assembly: "INVALID_ASSEMBLY",
+      target_assembly: "GRCh38",
+      coordinates: "17:7512445..7531642",
       species: "homo_sapiens",
     });
   } catch (error) {

@@ -5,7 +5,7 @@
  * Tests comparative genomics: homology, gene trees, alignments
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -49,9 +49,9 @@ async function testCompara() {
       },
     },
     {
-      name: "Get gene tree by Ensembl ID",
+      name: "Get gene tree for BRCA1",
       params: {
-        gene_id: "ENSG00000141510",
+        gene_symbol: "BRCA1",
         analysis_type: "genetree",
         species: "homo_sapiens",
       },
@@ -116,32 +116,47 @@ async function testCompara() {
           const first = homologies[0];
           if (first.target) {
             console.log(
-              `   First match: ${first.target.id} (${first.target.species}) - ${first.type}`
+              `   First match: ${first.target.id || "Unknown"} (${
+                first.target.species || "Unknown"
+              }) - ${first.type || "Unknown"}`
             );
             if (first.target.perc_id) {
               console.log(
-                `   Identity: ${first.target.perc_id}%, Coverage: ${first.target.perc_pos}%`
+                `   Identity: ${first.target.perc_id}%, Coverage: ${
+                  first.target.perc_pos || "N/A"
+                }%`
               );
             }
           }
 
-          // Count by species
+          // Count by species - handle both target.species and homology_type structures
           const speciesCount = {};
           homologies.forEach((h) => {
+            let species = null;
             if (h.target && h.target.species) {
-              speciesCount[h.target.species] =
-                (speciesCount[h.target.species] || 0) + 1;
+              species = h.target.species;
+            } else if (h.homology_type) {
+              // Some responses might have different structure
+              species = "Various";
+            }
+
+            if (species) {
+              speciesCount[species] = (speciesCount[species] || 0) + 1;
             }
           });
 
-          console.log(
-            `   Species distribution:`,
-            Object.entries(speciesCount)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 5)
-              .map(([species, count]) => `${species}: ${count}`)
-              .join(", ")
-          );
+          if (Object.keys(speciesCount).length > 0) {
+            console.log(
+              `   Species distribution:`,
+              Object.entries(speciesCount)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 5)
+                .map(([species, count]) => `${species}: ${count}`)
+                .join(", ")
+            );
+          } else {
+            console.log(`   Species distribution: Data structure varies`);
+          }
         }
       } else if (result.tree) {
         console.log(`✅ Gene tree retrieved`);
@@ -153,11 +168,18 @@ async function testCompara() {
         console.log(`✅ Found ${result.length} alignment blocks`);
         if (result.length > 0) {
           const first = result[0];
-          console.log(
-            `   First block: ${first.seq_region}:${first.seq_region_start}-${first.seq_region_end}`
-          );
+          // Handle different alignment response structures
+          const seqRegion =
+            first.seq_region || first.seq_region_name || "Unknown";
+          const start = first.seq_region_start || first.start || "Unknown";
+          const end = first.seq_region_end || first.end || "Unknown";
+
+          console.log(`   First block: ${seqRegion}:${start}-${end}`);
+
           if (first.alignments) {
             console.log(`   Species in alignment: ${first.alignments.length}`);
+          } else if (first.species) {
+            console.log(`   Target species: ${first.species}`);
           }
         }
       } else if (result) {

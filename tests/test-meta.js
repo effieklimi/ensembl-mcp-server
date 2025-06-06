@@ -5,7 +5,7 @@
  * Tests server metadata, species info, assemblies, and diagnostics
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -38,10 +38,9 @@ async function testMeta() {
       },
     },
     {
-      name: "Get genome information for human",
+      name: "Get divisions info",
       params: {
-        info_type: "genomes",
-        species: "homo_sapiens",
+        info_type: "divisions",
       },
     },
     {
@@ -73,22 +72,22 @@ async function testMeta() {
       },
     },
     {
-      name: "Get division info",
+      name: "Get external databases",
       params: {
-        info_type: "division",
+        info_type: "external_dbs",
+        species: "homo_sapiens",
       },
     },
     {
       name: "Archive ID version lookup",
       params: {
-        info_type: "archive",
-        identifier: "ENSG00000141510",
+        archive_id: "ENSG00000141510",
       },
     },
     {
-      name: "Get mouse genome info",
+      name: "Get mouse assembly info",
       params: {
-        info_type: "genomes",
+        info_type: "assembly",
         species: "mus_musculus",
       },
     },
@@ -229,9 +228,9 @@ async function testMeta() {
   }
 
   try {
-    console.log("\nTesting archive without identifier...");
+    console.log("\nTesting invalid archive ID...");
     await client.getMetaInfo({
-      info_type: "archive",
+      archive_id: "INVALID_ID123",
     });
   } catch (error) {
     console.log(`✅ Correctly caught error: ${error.message}`);

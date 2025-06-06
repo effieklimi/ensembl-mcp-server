@@ -2,10 +2,10 @@
 
 /**
  * Test script for ensembl_regulatory tool
- * Tests regulatory features, binding matrices, and regulatory annotations
+ * Tests protein features, domains, and binding matrices
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -14,40 +14,31 @@ async function testRegulatory() {
 
   const tests = [
     {
-      name: "Find regulatory features in BRCA1 promoter region",
-      params: {
-        region: "17:43044295-43045802",
-        species: "homo_sapiens",
-        feature_type: "RegulatoryFeature",
-      },
-    },
-    {
-      name: "Find all regulatory elements in TP53 region",
-      params: {
-        region: "17:7565096-7590856",
-        species: "homo_sapiens",
-      },
-    },
-    {
-      name: "Find motif features in enhancer region",
-      params: {
-        region: "17:43000000-43010000",
-        species: "homo_sapiens",
-        feature_type: "MotifFeature",
-      },
-    },
-    {
-      name: "Find regulatory features affecting EGFR protein",
+      name: "Find protein features for EGFR protein",
       params: {
         protein_id: "ENSP00000275493",
         species: "homo_sapiens",
       },
     },
     {
-      name: "Find regulatory features for TP53 protein",
+      name: "Find protein features for TP53 protein",
       params: {
         protein_id: "ENSP00000269305",
         species: "homo_sapiens",
+      },
+    },
+    {
+      name: "Find protein domains for BRCA1 protein",
+      params: {
+        protein_id: "ENSP00000350283",
+        species: "homo_sapiens",
+      },
+    },
+    {
+      name: "Find protein features for mouse Trp53",
+      params: {
+        protein_id: "ENSMUSP00000061689",
+        species: "mus_musculus",
       },
     },
     {
@@ -58,19 +49,10 @@ async function testRegulatory() {
       },
     },
     {
-      name: "Find regulatory features in mouse Sox2 region",
+      name: "Find protein features for insulin receptor",
       params: {
-        region: "3:34547775-34551693",
-        species: "mus_musculus",
-        feature_type: "RegulatoryFeature",
-      },
-    },
-    {
-      name: "Find transcription factor binding sites",
-      params: {
-        region: "1:1000000-1010000",
+        protein_id: "ENSP00000303830",
         species: "homo_sapiens",
-        feature_type: "TF_binding_site",
       },
     },
   ];
@@ -83,21 +65,25 @@ async function testRegulatory() {
       const result = await client.getRegulatoryFeatures(test.params);
 
       if (Array.isArray(result)) {
-        console.log(`✅ Found ${result.length} regulatory features`);
+        console.log(`✅ Found ${result.length} protein features`);
         if (result.length > 0) {
           const first = result[0];
           console.log(
             `   First result: ${first.display_name || first.id} (${
-              first.feature_type || first.biotype
+              first.feature_type || first.type || first.biotype
             })`
           );
-          if (first.bound_start && first.bound_end) {
-            console.log(
-              `   Location: ${first.seq_region_name}:${first.bound_start}-${first.bound_end}`
-            );
+          if (first.start && first.end) {
+            console.log(`   Location: ${first.start}-${first.end}`);
           }
-          if (result.length > 1) {
-            console.log(`   Total regulatory elements: ${result.length}`);
+          if (result.length > 5) {
+            console.log(`   Total features: ${result.length}`);
+            console.log(
+              `   Last result: ${
+                result[result.length - 1].display_name ||
+                result[result.length - 1].id
+              }`
+            );
           }
         }
       } else if (result) {

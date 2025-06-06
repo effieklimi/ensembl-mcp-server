@@ -5,19 +5,19 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "start": "node --loader ts-node/esm src/index.ts",
-    "dev": "node --loader ts-node/esm --watch src/index.ts",
-    "test": "node tests/run-all-tests.js",
-    "test:meta": "node tests/test-meta.js",
-    "test:lookup": "node tests/test-lookup.js",
-    "test:sequence": "node tests/test-sequence.js",
-    "test:overlap": "node tests/test-feature-overlap.js",
-    "test:regulatory": "node tests/test-regulatory.js",
-    "test:protein": "node tests/test-protein-features.js",
-    "test:mapping": "node tests/test-mapping.js",
-    "test:compara": "node tests/test-compara.js",
-    "test:variation": "node tests/test-variation.js",
-    "test:ontotax": "node tests/test-ontotax.js"
+    "start": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' src/index.ts",
+    "dev": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' --watch src/index.ts",
+    "test": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/run-all-tests.js",
+    "test:meta": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-meta.js",
+    "test:lookup": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-lookup.js",
+    "test:sequence": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-sequence.js",
+    "test:overlap": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-feature-overlap.js",
+    "test:regulatory": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-regulatory.js",
+    "test:protein": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-protein-features.js",
+    "test:mapping": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-mapping.js",
+    "test:compara": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-compara.js",
+    "test:variation": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-variation.js",
+    "test:ontotax": "node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' tests/test-ontotax.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"

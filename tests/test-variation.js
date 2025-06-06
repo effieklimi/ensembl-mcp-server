@@ -5,7 +5,7 @@
  * Tests variant analysis, VEP predictions, LD analysis, and phenotype mapping
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -54,9 +54,9 @@ async function testVariation() {
       },
     },
     {
-      name: "VEP analysis for genomic variant",
+      name: "VEP analysis by region",
       params: {
-        hgvs_notation: "17:g.7579472G>C",
+        region: "17:7676154-7676154:1/C",
         analysis_type: "vep",
         species: "homo_sapiens",
       },
@@ -80,10 +80,10 @@ async function testVariation() {
       },
     },
     {
-      name: "Phenotype associations for rs699",
+      name: "Get variation features by region",
       params: {
-        variant_id: "rs699",
-        analysis_type: "phenotype",
+        region: "1:230710040-230710050",
+        analysis_type: "variant_info",
         species: "homo_sapiens",
       },
     },
@@ -104,9 +104,9 @@ async function testVariation() {
       },
     },
     {
-      name: "VEP for protein variant",
+      name: "VEP for coding sequence variant",
       params: {
-        hgvs_notation: "ENSP00000269305.4:p.Arg72Pro",
+        hgvs_notation: "ENST00000269305.4:c.215C>G",
         analysis_type: "vep",
         species: "homo_sapiens",
       },

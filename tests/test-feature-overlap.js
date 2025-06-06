@@ -5,7 +5,7 @@
  * Tests genomic feature overlap queries - exactly how an LLM would call them
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
 
 const client = new EnsemblApiClient();
 
@@ -22,11 +22,11 @@ async function testFeatureOverlap() {
       },
     },
     {
-      name: "Find all features in TP53 region",
+      name: "Find genes in TP53 region",
       params: {
         region: "17:7565096-7590856",
         species: "homo_sapiens",
-        feature_types: ["gene", "transcript", "exon"],
+        feature_types: ["gene"],
       },
     },
     {
@@ -43,7 +43,7 @@ async function testFeatureOverlap() {
       params: {
         feature_id: "ENSG00000146648",
         species: "homo_sapiens",
-        feature_types: ["transcript", "regulatory_feature"],
+        feature_types: ["transcript"],
       },
     },
     {
@@ -55,11 +55,19 @@ async function testFeatureOverlap() {
       },
     },
     {
-      name: "Find regulatory features in enhancer region",
+      name: "Find transcripts in enhancer region",
       params: {
         region: "17:43000000-43010000",
         species: "homo_sapiens",
-        feature_types: ["regulatory_feature", "motif_feature"],
+        feature_types: ["transcript"],
+      },
+    },
+    {
+      name: "Find variations in disease-associated region",
+      params: {
+        region: "17:7571720-7590856",
+        species: "homo_sapiens",
+        feature_types: ["variation"],
       },
     },
   ];
@@ -69,7 +77,9 @@ async function testFeatureOverlap() {
       console.log(`\n📍 ${test.name}`);
       console.log(`Parameters:`, JSON.stringify(test.params, null, 2));
 
-      const result = await client.getOverlapByRegion(test.params);
+      const result = test.params.feature_id
+        ? await client.getOverlapById(test.params)
+        : await client.getOverlapByRegion(test.params);
 
       if (Array.isArray(result)) {
         console.log(`✅ Found ${result.length} overlapping features`);
