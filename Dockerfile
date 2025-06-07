@@ -10,16 +10,11 @@ RUN npm install --production
 # Copy source code
 COPY . .
 
-# Install esbuild globally for bundling
-RUN npm install -g esbuild
+# Install TypeScript globally for compilation
+RUN npm install -g typescript
 
-# Bundle TypeScript into a single JavaScript file
-RUN mkdir -p dist && esbuild index.ts \
-  --bundle --platform=node --format=esm \
-  --external:@modelcontextprotocol/sdk/server/index.js \
-  --external:@modelcontextprotocol/sdk/server/stdio.js \
-  --external:@modelcontextprotocol/sdk/types.js \
-  --outfile=dist/index.js
+# Compile TypeScript to JavaScript
+RUN npm run build
 
 # Start the server
 CMD ["node", "dist/index.js"]
