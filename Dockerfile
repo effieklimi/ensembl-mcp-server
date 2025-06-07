@@ -3,9 +3,9 @@ FROM node:lts-alpine
 
 WORKDIR /app
 
-# Install production dependencies
+# Install all dependencies (including dev deps for build)
 COPY package.json package-lock.json ./
-RUN npm install --production
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -15,6 +15,9 @@ RUN npm install -g typescript
 
 # Compile TypeScript to JavaScript
 RUN npm run build
+
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
 
 # Start the server
 CMD ["node", "dist/index.js"]
