@@ -7,7 +7,7 @@ import type {
   GeneSearchParams,
   VariantSearchParams,
   SequenceParams,
-} from "../types/ensembl.js";
+} from "../types/ensembl";
 
 interface RateLimiter {
   lastRequestTime: number;

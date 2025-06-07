@@ -1,6 +1,6 @@
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { EnsemblApiClient } from "../utils/ensembl-api.js";
-import { normalizeEnsemblInputs } from "../utils/input-normalizer.js";
+import type { Tool } from "@modelcontextprotocol/sdk/types";
+import { EnsemblApiClient } from "../utils/ensembl-api";
+import { normalizeEnsemblInputs } from "../utils/input-normalizer";
 
 const ensemblClient = new EnsemblApiClient();
 

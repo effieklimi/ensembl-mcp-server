@@ -16,7 +16,7 @@ import {
   normalizeHgvsNotation,
   normalizeScaffoldName,
   normalizeEnsemblInputs,
-} from "../src/utils/input-normalizer.js";
+} from "../src/utils/input-normalizer";
 
 // Test framework
 let totalTests = 0;

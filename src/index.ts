@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   type CallToolRequest,
   type ListToolsRequest,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/sdk/types";
 
 import {
   ensemblTools,
@@ -21,7 +21,7 @@ import {
   handleCompara,
   handleVariation,
   handleOntoTax,
-} from "./handlers/tools.js";
+} from "./handlers/tools";
 
 export class EnsemblMCPServer {
   private server: Server;
