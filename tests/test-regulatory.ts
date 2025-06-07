@@ -5,7 +5,7 @@
  * Tests protein features, domains, and binding matrices
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
+import { EnsemblApiClient } from "../src/utils/ensembl-api";
 
 const client = new EnsemblApiClient();
 
@@ -14,9 +14,13 @@ let totalTests = 0;
 let passedTests = 0;
 let failedTests = 0;
 
-function test(name, expectedToPass = true) {
+interface TestCase {
+  run(testFunction: () => Promise<void>): Promise<void>;
+}
+
+function test(name: string, expectedToPass: boolean = true): TestCase {
   return {
-    async run(testFunction) {
+    async run(testFunction: () => Promise<void>): Promise<void> {
       totalTests++;
       console.log(`\n📍 ${name}`);
 
@@ -29,20 +33,22 @@ function test(name, expectedToPass = true) {
           failedTests++;
           console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         if (!expectedToPass) {
           passedTests++;
-          console.log(`✅ PASS - Expected error: ${error.message}`);
+          console.log(`✅ PASS - Expected error: ${errorMessage}`);
         } else {
           failedTests++;
-          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
+          console.log(`❌ FAIL - Unexpected error: ${errorMessage}`);
         }
       }
     },
   };
 }
 
-async function runRegulatoryTests() {
+async function runRegulatoryTests(): Promise<void> {
   console.log("🔬 UNIT TESTS: ensembl_regulatory tool\n");
 
   // Positive tests
@@ -77,7 +83,7 @@ async function runRegulatoryTests() {
     await client.getRegulatoryFeatures({
       species: "homo_sapiens",
       // Missing region, protein_id, and binding_matrix_id
-    });
+    } as any);
   });
 
   await test("Invalid protein ID", false).run(async () => {
@@ -96,7 +102,7 @@ async function runRegulatoryTests() {
 }
 
 // Run tests and exit with appropriate code
-async function main() {
+async function main(): Promise<void> {
   try {
     await runRegulatoryTests();
 
@@ -115,8 +121,9 @@ async function main() {
       console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
       process.exit(0);
     }
-  } catch (error) {
-    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`\n💥 TEST RUNNER ERROR: ${errorMessage}`);
     process.exit(1);
   }
 }

@@ -5,7 +5,7 @@
  * Tests genomic feature overlap queries
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
+import { EnsemblApiClient } from "../src/utils/ensembl-api";
 
 const client = new EnsemblApiClient();
 
@@ -14,9 +14,13 @@ let totalTests = 0;
 let passedTests = 0;
 let failedTests = 0;
 
-function test(name, expectedToPass = true) {
+interface TestCase {
+  run(testFunction: () => Promise<void>): Promise<void>;
+}
+
+function test(name: string, expectedToPass: boolean = true): TestCase {
   return {
-    async run(testFunction) {
+    async run(testFunction: () => Promise<void>): Promise<void> {
       totalTests++;
       console.log(`\n📍 ${name}`);
 
@@ -29,20 +33,22 @@ function test(name, expectedToPass = true) {
           failedTests++;
           console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         if (!expectedToPass) {
           passedTests++;
-          console.log(`✅ PASS - Expected error: ${error.message}`);
+          console.log(`✅ PASS - Expected error: ${errorMessage}`);
         } else {
           failedTests++;
-          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
+          console.log(`❌ FAIL - Unexpected error: ${errorMessage}`);
         }
       }
     },
   };
 }
 
-async function runFeatureOverlapTests() {
+async function runFeatureOverlapTests(): Promise<void> {
   console.log("🧬 UNIT TESTS: ensembl_feature_overlap tool\n");
 
   // Positive tests
@@ -70,7 +76,7 @@ async function runFeatureOverlapTests() {
       throw new Error("No genes found in TP53 region");
     }
 
-    const tp53 = result.find((g) => g.external_name === "TP53");
+    const tp53 = result.find((g: any) => g.external_name === "TP53");
     if (!tp53) {
       throw new Error("TP53 gene not found in its own region");
     }
@@ -112,12 +118,12 @@ async function runFeatureOverlapTests() {
     await client.getOverlapByRegion({
       species: "homo_sapiens",
       feature_types: ["gene"],
-    });
+    } as any);
   });
 }
 
 // Run tests and exit with appropriate code
-async function main() {
+async function main(): Promise<void> {
   try {
     await runFeatureOverlapTests();
 
@@ -136,8 +142,9 @@ async function main() {
       console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
       process.exit(0);
     }
-  } catch (error) {
-    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`\n💥 TEST RUNNER ERROR: ${errorMessage}`);
     process.exit(1);
   }
 }

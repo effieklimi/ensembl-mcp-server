@@ -5,7 +5,7 @@
  * Tests DNA, RNA, and protein sequence retrieval
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api.ts";
+import { EnsemblApiClient } from "../src/utils/ensembl-api";
 
 const client = new EnsemblApiClient();
 
@@ -14,9 +14,13 @@ let totalTests = 0;
 let passedTests = 0;
 let failedTests = 0;
 
-function test(name, expectedToPass = true) {
+interface TestCase {
+  run(testFunction: () => Promise<void>): Promise<void>;
+}
+
+function test(name: string, expectedToPass: boolean = true): TestCase {
   return {
-    async run(testFunction) {
+    async run(testFunction: () => Promise<void>): Promise<void> {
       totalTests++;
       console.log(`\n📍 ${name}`);
 
@@ -29,20 +33,28 @@ function test(name, expectedToPass = true) {
           failedTests++;
           console.log(`❌ FAIL - Expected this test to fail but it passed`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         if (!expectedToPass) {
           passedTests++;
-          console.log(`✅ PASS - Expected error: ${error.message}`);
+          console.log(
+            `✅ PASS - Expected error: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
         } else {
           failedTests++;
-          console.log(`❌ FAIL - Unexpected error: ${error.message}`);
+          console.log(
+            `❌ FAIL - Unexpected error: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
         }
       }
     },
   };
 }
 
-async function runSequenceTests() {
+async function runSequenceTests(): Promise<void> {
   console.log("🧬 UNIT TESTS: ensembl_sequence tool\n");
 
   // Positive tests
@@ -155,12 +167,12 @@ async function runSequenceTests() {
     await client.getSequenceData({
       sequence_type: "genomic",
       species: "homo_sapiens",
-    });
+    } as any);
   });
 }
 
 // Run tests and exit with appropriate code
-async function main() {
+async function main(): Promise<void> {
   try {
     await runSequenceTests();
 
@@ -179,8 +191,12 @@ async function main() {
       console.log(`\n✅ OVERALL: PASSED (all tests successful)`);
       process.exit(0);
     }
-  } catch (error) {
-    console.error(`\n💥 TEST RUNNER ERROR: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(
+      `\n💥 TEST RUNNER ERROR: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
     process.exit(1);
   }
 }

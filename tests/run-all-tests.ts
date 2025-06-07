@@ -13,32 +13,39 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const testFiles = [
-  "test-meta.js",
-  "test-lookup.js",
-  "test-sequence.js",
-  "test-feature-overlap.js",
-  "test-regulatory.js",
-  "test-protein-features.js",
-  "test-mapping.js",
-  "test-compara.js",
-  "test-variation.js",
-  "test-ontotax.js",
+  "test-meta.ts",
+  "test-lookup.ts",
+  "test-sequence.ts",
+  "test-feature-overlap.ts",
+  "test-regulatory.ts",
+  "test-protein-features.ts",
+  "test-mapping.ts",
+  "test-compara.ts",
+  "test-variation.ts",
+  "test-ontotax.ts",
 ];
 
-const testDescriptions = {
-  "test-meta.js": "Server metadata, species info, assemblies",
-  "test-lookup.js": "ID/symbol lookup, cross-references, variant recoding",
-  "test-sequence.js": "DNA/RNA/protein sequence retrieval",
-  "test-feature-overlap.js": "Genomic feature overlap queries",
-  "test-regulatory.js": "Regulatory features and binding matrices",
-  "test-protein-features.js": "Protein domains and functional annotations",
-  "test-mapping.js": "Coordinate transformations and assembly lifts",
-  "test-compara.js": "Comparative genomics: homology, gene trees",
-  "test-variation.js": "Variant analysis, VEP, LD, phenotypes",
-  "test-ontotax.js": "Ontology and taxonomy searches",
+const testDescriptions: Record<string, string> = {
+  "test-meta.ts": "Server metadata, species info, assemblies",
+  "test-lookup.ts": "ID/symbol lookup, cross-references, variant recoding",
+  "test-sequence.ts": "DNA/RNA/protein sequence retrieval",
+  "test-feature-overlap.ts": "Genomic feature overlap queries",
+  "test-regulatory.ts": "Regulatory features and binding matrices",
+  "test-protein-features.ts": "Protein domains and functional annotations",
+  "test-mapping.ts": "Coordinate transformations and assembly lifts",
+  "test-compara.ts": "Comparative genomics: homology, gene trees",
+  "test-variation.ts": "Variant analysis, VEP, LD, phenotypes",
+  "test-ontotax.ts": "Ontology and taxonomy searches",
 };
 
-async function runTest(testFile) {
+interface TestResult {
+  file: string;
+  success: boolean;
+  duration: number;
+  error?: string;
+}
+
+async function runTest(testFile: string): Promise<TestResult> {
   return new Promise((resolve) => {
     const startTime = Date.now();
     console.log(`\n${"=".repeat(80)}`);
@@ -52,37 +59,39 @@ async function runTest(testFile) {
     });
 
     child.on("close", (code) => {
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      const duration = (Date.now() - startTime) / 1000;
       const status = code === 0 ? "✅ PASSED" : "❌ FAILED";
-      console.log(`\n${status} - ${testFile} completed in ${duration}s`);
+      console.log(
+        `\n${status} - ${testFile} completed in ${duration.toFixed(2)}s`
+      );
       resolve({
         file: testFile,
         success: code === 0,
-        duration: parseFloat(duration),
+        duration: parseFloat(duration.toFixed(2)),
       });
     });
 
     child.on("error", (error) => {
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      const duration = (Date.now() - startTime) / 1000;
       console.log(
         `\n❌ ERROR - ${testFile} failed with error: ${error.message}`
       );
       resolve({
         file: testFile,
         success: false,
-        duration: parseFloat(duration),
+        duration: parseFloat(duration.toFixed(2)),
         error: error.message,
       });
     });
   });
 }
 
-async function runAllTests() {
+async function runAllTests(): Promise<void> {
   const startTime = Date.now();
   console.log("🧬 Ensembl MCP Server - Comprehensive Tool Test Suite");
   console.log(`📊 Running tests for ${testFiles.length} tools\n`);
 
-  const results = [];
+  const results: TestResult[] = [];
 
   for (const testFile of testFiles) {
     const result = await runTest(testFile);
@@ -109,7 +118,7 @@ async function runAllTests() {
   results.forEach((result) => {
     const status = result.success ? "✅" : "❌";
     const duration = result.duration.toFixed(2).padStart(6);
-    const testName = result.file.replace(".js", "").padEnd(25);
+    const testName = result.file.replace(".ts", "").padEnd(25);
     console.log(`  ${status} ${testName} ${duration}s`);
     if (result.error) {
       console.log(`      Error: ${result.error}`);
@@ -130,14 +139,14 @@ async function runAllTests() {
     );
   }
 
-  console.log(`\n💡 To run individual tests: node tests/<test-name>.js`);
-  console.log("   Example: node tests/test-lookup.js");
+  console.log(`\n💡 To run individual tests: tsx tests/<test-name>.ts`);
+  console.log("   Example: tsx tests/test-lookup.ts");
 
   process.exit(failed > 0 ? 1 : 0);
 }
 
 // Run the test suite
-runAllTests().catch((error) => {
+runAllTests().catch((error: unknown) => {
   console.error("❌ Test runner failed:", error);
   process.exit(1);
 });
