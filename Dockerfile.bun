@@ -1,0 +1,19 @@
+# Bun-optimized Dockerfile
+FROM oven/bun:1-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock* ./
+
+# Install dependencies with Bun
+RUN bun install --production
+
+# Copy source code
+COPY . .
+
+# Build with Bun (much faster than esbuild)
+RUN bun build index.ts --outdir=dist --target=node
+
+# Start the server with Bun
+CMD ["bun", "dist/index.js"] 
