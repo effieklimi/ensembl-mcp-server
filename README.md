@@ -52,14 +52,7 @@ npx -y @smithery/cli@latest install @effieklimi/ensembl-mcp-server --client wind
 
 Check the MCP's smithery link for additional platform options.
 
-### Option 2: Via Glama
-
-Install directly through Glama:
-
-1. Visit [Glama - Ensembl MCP Server](https://glama.ai/mcp/servers/@effieklimi/ensembl-mcp-server)
-2. Follow the one-click installation instructions for your MCP client
-
-### Option 3: Local Development Setup
+### Option 2: Local Development Setup
 
 For development or custom setups:
 
