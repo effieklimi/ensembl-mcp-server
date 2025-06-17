@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/effieklimi-ensembl-mcp-server-badge.png)](https://mseep.ai/app/effieklimi-ensembl-mcp-server)
+
 # 🧬 Ensembl API MCP Server
 
 [![smithery badge](https://smithery.ai/badge/@effieklimi/ensembl-mcp-server)](https://smithery.ai/server/@effieklimi/ensembl-mcp-server)
