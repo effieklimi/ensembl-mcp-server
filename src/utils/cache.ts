@@ -62,11 +62,13 @@ export class ResponseCache {
   /**
    * Build a deterministic cache key from endpoint + sorted params.
    * Prefixed with the Ensembl release version for auto-invalidation.
+   * Optional serverPrefix isolates entries across different servers (e.g., grch37 vs grch38).
    */
   buildKey(
     releaseVersion: string,
     endpoint: string,
-    params?: Record<string, string>
+    params?: Record<string, string>,
+    serverPrefix?: string
   ): string {
     let paramString = "";
     if (params) {
@@ -77,7 +79,8 @@ export class ResponseCache {
         paramString = "?" + sorted.map(([k, v]) => `${k}=${v}`).join("&");
       }
     }
-    return `${releaseVersion}:${endpoint}${paramString}`;
+    const prefix = serverPrefix ? `${serverPrefix}:` : "";
+    return `${prefix}${releaseVersion}:${endpoint}${paramString}`;
   }
 
   get<T>(key: string): T | null {

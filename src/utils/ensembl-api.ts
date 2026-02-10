@@ -11,6 +11,12 @@ import type {
 import { logger } from "./logger.js";
 import { enrichError, enrichSpeciesError, EnsemblError } from "./error-handler.js";
 import { ResponseCache } from "./cache.js";
+import {
+  resolveBaseUrl,
+  getServerIdentifier,
+  checkGrch37Support,
+  DEFAULT_SERVER,
+} from "./species-data.js";
 
 interface RateLimiter {
   lastRequestTime: number;
@@ -25,7 +31,7 @@ interface RetryConfig {
 }
 
 export class EnsemblApiClient {
-  private readonly baseUrl = "https://rest.ensembl.org";
+  private readonly defaultBaseUrl = DEFAULT_SERVER;
   private readonly rateLimiter: RateLimiter = {
     lastRequestTime: 0,
     minInterval: 100, // 100ms = 10 requests per second (conservative)
@@ -37,35 +43,41 @@ export class EnsemblApiClient {
     retryableStatuses: new Set([429, 500, 502, 503, 504]),
   };
   private readonly cache = new ResponseCache();
-  private releaseVersion: string | null = null;
-  private releaseVersionPromise: Promise<string> | null = null;
+  private releaseVersions = new Map<string, string>();
+  private releaseVersionPromises = new Map<string, Promise<string>>();
 
-  private async getReleaseVersion(): Promise<string> {
-    if (this.releaseVersion) return this.releaseVersion;
+  private async getReleaseVersion(baseUrl?: string): Promise<string> {
+    const server = baseUrl ?? this.defaultBaseUrl;
+    const cached = this.releaseVersions.get(server);
+    if (cached) return cached;
     // Avoid parallel fetches during startup
-    if (this.releaseVersionPromise) return this.releaseVersionPromise;
+    const inflight = this.releaseVersionPromises.get(server);
+    if (inflight) return inflight;
 
-    this.releaseVersionPromise = (async () => {
+    const promise = (async () => {
+      let version: string;
       try {
         await this.enforceRateLimit();
-        const url = `${this.baseUrl}/info/data`;
+        const url = `${server}/info/data`;
         const response = await fetch(url, {
           headers: { "Content-Type": "application/json", Accept: "application/json" },
         });
         if (response.ok) {
           const data = (await response.json()) as { releases: number[] };
-          this.releaseVersion = String(data.releases?.[0] ?? "unknown");
+          version = String(data.releases?.[0] ?? "unknown");
         } else {
-          this.releaseVersion = "unknown";
+          version = "unknown";
         }
       } catch {
-        this.releaseVersion = "unknown";
+        version = "unknown";
       }
-      logger.info("release_version_fetched", { version: this.releaseVersion });
-      return this.releaseVersion!;
+      this.releaseVersions.set(server, version);
+      logger.info("release_version_fetched", { server, version });
+      return version;
     })();
 
-    return this.releaseVersionPromise;
+    this.releaseVersionPromises.set(server, promise);
+    return promise;
   }
 
   clearCache(): void {
@@ -193,11 +205,15 @@ export class EnsemblApiClient {
 
   private async makeRequest<T>(
     endpoint: string,
-    params?: Record<string, string>
+    params?: Record<string, string>,
+    baseUrl?: string
   ): Promise<T> {
+    const server = baseUrl ?? this.defaultBaseUrl;
+    const serverPrefix = getServerIdentifier(server);
+
     // Check cache before rate limiting or network call
-    const releaseVersion = await this.getReleaseVersion();
-    const cacheKey = this.cache.buildKey(releaseVersion, endpoint, params);
+    const releaseVersion = await this.getReleaseVersion(server);
+    const cacheKey = this.cache.buildKey(releaseVersion, endpoint, params, serverPrefix);
     const cached = this.cache.get<T>(cacheKey);
     if (cached !== null) {
       return cached;
@@ -205,7 +221,7 @@ export class EnsemblApiClient {
 
     await this.enforceRateLimit();
 
-    const url = new URL(`${this.baseUrl}${endpoint}`);
+    const url = new URL(`${server}${endpoint}`);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value) url.searchParams.append(key, value);
@@ -213,7 +229,7 @@ export class EnsemblApiClient {
     }
 
     const start = Date.now();
-    logger.debug("api_request_start", { endpoint, params });
+    logger.debug("api_request_start", { endpoint, params, server });
 
     const response = await this.fetchWithRetry(
       url.toString(),
@@ -228,6 +244,7 @@ export class EnsemblApiClient {
 
     logger.info("api_request_complete", {
       endpoint,
+      server,
       status: response.status,
       duration_ms: Date.now() - start,
     });
@@ -244,11 +261,13 @@ export class EnsemblApiClient {
   private async makePostRequest<T>(
     endpoint: string,
     body: object,
-    params?: Record<string, string>
+    params?: Record<string, string>,
+    baseUrl?: string
   ): Promise<T> {
+    const server = baseUrl ?? this.defaultBaseUrl;
     await this.enforceRateLimit();
 
-    const url = new URL(`${this.baseUrl}${endpoint}`);
+    const url = new URL(`${server}${endpoint}`);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value) url.searchParams.append(key, value);
@@ -256,7 +275,7 @@ export class EnsemblApiClient {
     }
 
     const start = Date.now();
-    logger.debug("api_post_request_start", { endpoint, params });
+    logger.debug("api_post_request_start", { endpoint, params, server });
 
     const response = await this.fetchWithRetry(
       url.toString(),
@@ -273,6 +292,7 @@ export class EnsemblApiClient {
 
     logger.info("api_post_request_complete", {
       endpoint,
+      server,
       status: response.status,
       duration_ms: Date.now() - start,
     });
@@ -290,10 +310,33 @@ export class EnsemblApiClient {
 
   private static readonly BATCH_LIMIT = 200;
 
-  private async validateSpecies(species: string): Promise<void> {
+  /**
+   * Resolve the correct server for a set of tool arguments + endpoint.
+   * Throws EnsemblError if the endpoint is unsupported on GRCh37.
+   */
+  private resolveServerForArgs(
+    args: { assembly?: string; species?: string },
+    endpoint: string
+  ): string {
+    const server = resolveBaseUrl(args.assembly, args.species);
+    if (server !== this.defaultBaseUrl) {
+      const unsupportedMsg = checkGrch37Support(endpoint);
+      if (unsupportedMsg) {
+        throw new EnsemblError(
+          unsupportedMsg,
+          400,
+          endpoint,
+          'Remove the assembly parameter or use assembly: "GRCh38" to access this data.'
+        );
+      }
+    }
+    return server;
+  }
+
+  private async validateSpecies(species: string, baseUrl?: string): Promise<void> {
     try {
       // Try to get assembly info for the species - this will fail if species is invalid
-      await this.makeRequest(`/info/assembly/${species}`);
+      await this.makeRequest(`/info/assembly/${species}`, undefined, baseUrl);
     } catch (error) {
       // If it's already an EnsemblError from makeRequest, rethrow as a species-specific one
       throw enrichSpeciesError(species);
@@ -302,7 +345,9 @@ export class EnsemblApiClient {
 
   // Feature overlap methods
   async getOverlapByRegion(args: any): Promise<any> {
-    const { region, species = "homo_sapiens", feature_types, biotype } = args;
+    const { region, species = "homo_sapiens", feature_types, biotype, assembly } = args;
+    const endpoint = `/overlap/region/${species}/${region}`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const params: Record<string, string> = {};
 
     if (feature_types && feature_types.length > 0) {
@@ -312,18 +357,20 @@ export class EnsemblApiClient {
       params.biotype = biotype;
     }
 
-    return this.makeRequest(`/overlap/region/${species}/${region}`, params);
+    return this.makeRequest(endpoint, params, baseUrl);
   }
 
   async getOverlapById(args: any): Promise<any> {
-    const { feature_id, species = "homo_sapiens", feature_types } = args;
+    const { feature_id, species = "homo_sapiens", feature_types, assembly } = args;
+    const endpoint = `/overlap/id/${feature_id}`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const params: Record<string, string> = {};
 
     if (feature_types && feature_types.length > 0) {
       params.feature = feature_types.join(",");
     }
 
-    return this.makeRequest(`/overlap/id/${feature_id}`, params);
+    return this.makeRequest(endpoint, params, baseUrl);
   }
 
   // Regulatory features
@@ -334,6 +381,7 @@ export class EnsemblApiClient {
       binding_matrix_id,
       species = "homo_sapiens",
       feature_type,
+      assembly,
     } = args;
     const params: Record<string, string> = {};
 
@@ -342,17 +390,20 @@ export class EnsemblApiClient {
     }
 
     if (region) {
-      return this.makeRequest(`/overlap/region/${species}/${region}`, {
+      const endpoint = `/overlap/region/${species}/${region}`;
+      const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+      return this.makeRequest(endpoint, {
         ...params,
         feature: "RegulatoryFeature",
-      });
+      }, baseUrl);
     } else if (protein_id) {
-      return this.makeRequest(`/overlap/translation/${protein_id}`, params);
+      const endpoint = `/overlap/translation/${protein_id}`;
+      const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+      return this.makeRequest(endpoint, params, baseUrl);
     } else if (binding_matrix_id) {
-      return this.makeRequest(
-        `/species/${species}/binding_matrix/${binding_matrix_id}`,
-        params
-      );
+      const endpoint = `/species/${species}/binding_matrix/${binding_matrix_id}`;
+      const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+      return this.makeRequest(endpoint, params, baseUrl);
     }
 
     throw new Error(
@@ -360,7 +411,7 @@ export class EnsemblApiClient {
     );
   }
 
-  // Protein features
+  // Protein features (assembly-independent — protein IDs don't vary by assembly)
   async getProteinFeatures(args: any): Promise<any> {
     const { protein_id, feature_type, species = "homo_sapiens" } = args;
 
@@ -384,40 +435,42 @@ export class EnsemblApiClient {
 
   // Meta information
   async getMetaInfo(args: any): Promise<any> {
-    const { info_type, species, archive_id, division } = args;
+    const { info_type, species, archive_id, division, assembly } = args;
+    // Resolve server — meta endpoints are generally available on both servers
+    const baseUrl = resolveBaseUrl(assembly, species);
 
     if (archive_id) {
-      return this.makeRequest(`/archive/id/${archive_id}`);
+      return this.makeRequest(`/archive/id/${archive_id}`, undefined, baseUrl);
     }
 
     switch (info_type) {
       case "ping":
-        return this.makeRequest("/info/ping");
+        return this.makeRequest("/info/ping", undefined, baseUrl);
       case "rest":
-        return this.makeRequest("/info/rest");
+        return this.makeRequest("/info/rest", undefined, baseUrl);
       case "software":
-        return this.makeRequest("/info/software");
+        return this.makeRequest("/info/software", undefined, baseUrl);
       case "data":
-        return this.makeRequest("/info/data");
+        return this.makeRequest("/info/data", undefined, baseUrl);
       case "species":
-        return this.makeRequest("/info/species");
+        return this.makeRequest("/info/species", undefined, baseUrl);
       case "divisions":
-        return this.makeRequest("/info/divisions");
+        return this.makeRequest("/info/divisions", undefined, baseUrl);
       case "assembly":
         if (!species) throw new Error("Species required for assembly info");
-        return this.makeRequest(`/info/assembly/${species}`);
+        return this.makeRequest(`/info/assembly/${species}`, undefined, baseUrl);
       case "biotypes":
         if (!species) throw new Error("Species required for biotypes info");
-        return this.makeRequest(`/info/biotypes/${species}`);
+        return this.makeRequest(`/info/biotypes/${species}`, undefined, baseUrl);
       case "analysis":
         if (!species) throw new Error("Species required for analysis info");
-        return this.makeRequest(`/info/analysis/${species}`);
+        return this.makeRequest(`/info/analysis/${species}`, undefined, baseUrl);
       case "external_dbs":
         if (!species) throw new Error("Species required for external_dbs info");
-        return this.makeRequest(`/info/external_dbs/${species}`);
+        return this.makeRequest(`/info/external_dbs/${species}`, undefined, baseUrl);
       case "variation":
         if (!species) throw new Error("Species required for variation info");
-        return this.makeRequest(`/info/variation/${species}`);
+        return this.makeRequest(`/info/variation/${species}`, undefined, baseUrl);
       default:
         throw new Error(`Unknown info_type: ${info_type}`);
     }
@@ -431,6 +484,7 @@ export class EnsemblApiClient {
       species = "homo_sapiens",
       expand,
       external_db,
+      assembly,
     } = args;
     const params: Record<string, string> = {};
 
@@ -439,22 +493,31 @@ export class EnsemblApiClient {
     }
 
     switch (lookup_type) {
-      case "id":
-        return this.makeRequest(`/lookup/id/${identifier}`, params);
-      case "symbol":
-        return this.makeRequest(
-          `/lookup/symbol/${species}/${identifier}`,
-          params
-        );
-      case "xrefs":
+      case "id": {
+        const endpoint = `/lookup/id/${identifier}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, params, baseUrl);
+      }
+      case "symbol": {
+        const endpoint = `/lookup/symbol/${species}/${identifier}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, params, baseUrl);
+      }
+      case "xrefs": {
         if (external_db) {
-          return this.makeRequest(`/xrefs/name/${species}/${identifier}`, {
-            external_db,
-          });
+          const endpoint = `/xrefs/name/${species}/${identifier}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, { external_db }, baseUrl);
         }
-        return this.makeRequest(`/xrefs/id/${identifier}`);
-      case "variant_recoder":
-        return this.makeRequest(`/variant_recoder/${species}/${identifier}`);
+        const endpoint = `/xrefs/id/${identifier}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, undefined, baseUrl);
+      }
+      case "variant_recoder": {
+        const endpoint = `/variant_recoder/${species}/${identifier}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, undefined, baseUrl);
+      }
       default:
         throw new Error(`Unknown lookup_type: ${lookup_type}`);
     }
@@ -468,6 +531,7 @@ export class EnsemblApiClient {
       species = "homo_sapiens",
       format = "json",
       mask,
+      assembly,
     } = args;
     const params: Record<string, string> = {};
 
@@ -480,15 +544,16 @@ export class EnsemblApiClient {
 
     // Check if identifier looks like a region (contains :)
     if (identifier.includes(":")) {
-      return this.makeRequest(
-        `/sequence/region/${species}/${identifier}`,
-        params
-      );
+      const endpoint = `/sequence/region/${species}/${identifier}`;
+      const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+      return this.makeRequest(endpoint, params, baseUrl);
     } else {
       // It's a feature ID
       const typeParam =
         sequence_type !== "genomic" ? `?type=${sequence_type}` : "";
-      return this.makeRequest(`/sequence/id/${identifier}${typeParam}`, params);
+      const endpoint = `/sequence/id/${identifier}${typeParam}`;
+      const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+      return this.makeRequest(endpoint, params, baseUrl);
     }
   }
 
@@ -501,31 +566,42 @@ export class EnsemblApiClient {
       source_assembly,
       target_assembly,
       species = "homo_sapiens",
+      assembly,
     } = args;
 
     switch (mapping_type) {
-      case "cdna":
+      case "cdna": {
         if (!feature_id)
           throw new Error("feature_id required for cDNA mapping");
-        return this.makeRequest(`/map/cdna/${feature_id}/${coordinates}`);
-      case "cds":
+        const endpoint = `/map/cdna/${feature_id}/${coordinates}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, undefined, baseUrl);
+      }
+      case "cds": {
         if (!feature_id) throw new Error("feature_id required for CDS mapping");
-        return this.makeRequest(`/map/cds/${feature_id}/${coordinates}`);
-      case "translation":
+        const endpoint = `/map/cds/${feature_id}/${coordinates}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, undefined, baseUrl);
+      }
+      case "translation": {
         if (!feature_id)
           throw new Error("feature_id required for translation mapping");
-        return this.makeRequest(
-          `/map/translation/${feature_id}/${coordinates}`
-        );
-      case "assembly":
+        const endpoint = `/map/translation/${feature_id}/${coordinates}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, undefined, baseUrl);
+      }
+      case "assembly": {
         if (!source_assembly || !target_assembly) {
           throw new Error(
             "source_assembly and target_assembly required for assembly mapping"
           );
         }
-        return this.makeRequest(
-          `/map/${species}/${source_assembly}/${coordinates}/${target_assembly}`
-        );
+        // For assembly mapping, use source_assembly for server routing
+        const serverAssembly = assembly ?? source_assembly;
+        const endpoint = `/map/${species}/${source_assembly}/${coordinates}/${target_assembly}`;
+        const baseUrl = this.resolveServerForArgs({ assembly: serverAssembly, species }, endpoint);
+        return this.makeRequest(endpoint, undefined, baseUrl);
+      }
       default:
         throw new Error(`Unknown mapping_type: ${mapping_type}`);
     }
@@ -542,6 +618,7 @@ export class EnsemblApiClient {
       target_species,
       homology_type = "all",
       aligned,
+      assembly,
     } = args;
     const params: Record<string, string> = {};
 
@@ -556,45 +633,51 @@ export class EnsemblApiClient {
     }
 
     switch (analysis_type) {
-      case "homology":
+      case "homology": {
         if (gene_id) {
-          return this.makeRequest(`/homology/id/${species}/${gene_id}`, params);
+          const endpoint = `/homology/id/${species}/${gene_id}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (gene_symbol) {
-          return this.makeRequest(
-            `/homology/symbol/${species}/${gene_symbol}`,
-            params
-          );
+          const endpoint = `/homology/symbol/${species}/${gene_symbol}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         }
         throw new Error("Either gene_id or gene_symbol required for homology");
+      }
 
-      case "genetree":
+      case "genetree": {
         if (gene_id) {
-          return this.makeRequest(`/genetree/id/${gene_id}`, params);
+          const endpoint = `/genetree/id/${gene_id}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (gene_symbol) {
-          return this.makeRequest(
-            `/genetree/member/symbol/${species}/${gene_symbol}`,
-            params
-          );
+          const endpoint = `/genetree/member/symbol/${species}/${gene_symbol}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         }
         throw new Error("Either gene_id or gene_symbol required for gene tree");
+      }
 
-      case "cafe_tree":
+      case "cafe_tree": {
         if (gene_id) {
-          return this.makeRequest(`/cafe/genetree/id/${gene_id}`, params);
+          const endpoint = `/cafe/genetree/id/${gene_id}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (gene_symbol) {
-          return this.makeRequest(
-            `/cafe/genetree/member/symbol/${species}/${gene_symbol}`,
-            params
-          );
+          const endpoint = `/cafe/genetree/member/symbol/${species}/${gene_symbol}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         }
         throw new Error("Either gene_id or gene_symbol required for cafe tree");
+      }
 
-      case "alignment":
+      case "alignment": {
         if (!region) throw new Error("region required for alignment");
-        return this.makeRequest(
-          `/alignment/region/${species}/${region}`,
-          params
-        );
+        const endpoint = `/alignment/region/${species}/${region}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, params, baseUrl);
+      }
 
       default:
         throw new Error(`Unknown analysis_type: ${analysis_type}`);
@@ -612,6 +695,7 @@ export class EnsemblApiClient {
       consequence_type,
       population,
       transcript_id,
+      assembly,
     } = args;
     const params: Record<string, string> = {};
 
@@ -623,66 +707,71 @@ export class EnsemblApiClient {
     }
 
     switch (analysis_type) {
-      case "variant_info":
+      case "variant_info": {
         if (variant_id) {
-          return this.makeRequest(
-            `/variation/${species}/${variant_id}`,
-            params
-          );
+          const endpoint = `/variation/${species}/${variant_id}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (region) {
-          return this.makeRequest(`/overlap/region/${species}/${region}`, {
+          const endpoint = `/overlap/region/${species}/${region}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, {
             ...params,
             feature: "variation",
-          });
+          }, baseUrl);
         }
         throw new Error(
           "Either variant_id or region required for variant info"
         );
+      }
 
-      case "vep":
+      case "vep": {
         if (hgvs_notation) {
-          return this.makeRequest(
-            `/vep/${species}/hgvs/${hgvs_notation}`,
-            params
-          );
+          const endpoint = `/vep/${species}/hgvs/${hgvs_notation}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (variant_id) {
-          return this.makeRequest(`/vep/${species}/id/${variant_id}`, params);
+          const endpoint = `/vep/${species}/id/${variant_id}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (region) {
           // For region-based VEP, we need allele info - this is simplified
-          return this.makeRequest(`/vep/${species}/region/${region}/1`, params);
+          const endpoint = `/vep/${species}/region/${region}/1`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         }
         throw new Error(
           "Either hgvs_notation, variant_id, or region required for VEP"
         );
+      }
 
-      case "ld":
+      case "ld": {
         if (!variant_id) throw new Error("variant_id required for LD analysis");
-        return this.makeRequest(
-          `/ld/${species}/${variant_id}/1000GENOMES:phase_3:EUR`,
-          params
-        );
+        const endpoint = `/ld/${species}/${variant_id}/1000GENOMES:phase_3:EUR`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, params, baseUrl);
+      }
 
-      case "phenotype":
+      case "phenotype": {
         if (variant_id) {
-          return this.makeRequest(
-            `/phenotype/variant/${species}/${variant_id}`,
-            params
-          );
+          const endpoint = `/phenotype/variant/${species}/${variant_id}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         } else if (region) {
-          return this.makeRequest(
-            `/phenotype/region/${species}/${region}`,
-            params
-          );
+          const endpoint = `/phenotype/region/${species}/${region}`;
+          const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+          return this.makeRequest(endpoint, params, baseUrl);
         }
         throw new Error("Either variant_id or region required for phenotype");
+      }
 
-      case "haplotypes":
+      case "haplotypes": {
         if (!transcript_id)
           throw new Error("transcript_id required for haplotype analysis");
-        return this.makeRequest(
-          `/transcript_haplotypes/${species}/${transcript_id}`,
-          params
-        );
+        const endpoint = `/transcript_haplotypes/${species}/${transcript_id}`;
+        const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
+        return this.makeRequest(endpoint, params, baseUrl);
+      }
 
       default:
         throw new Error(`Unknown analysis_type: ${analysis_type}`);
@@ -850,13 +939,17 @@ export class EnsemblApiClient {
 
   // Batch operations
 
-  async batchLookupIds(ids: string[]): Promise<Record<string, any>> {
+  async batchLookupIds(ids: string[], assembly?: string): Promise<Record<string, any>> {
+    const endpoint = "/lookup/id";
+    const baseUrl = this.resolveServerForArgs({ assembly }, endpoint);
     const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
     const results: Record<string, any> = {};
     for (const chunk of chunks) {
       const response = await this.makePostRequest<Record<string, any>>(
-        "/lookup/id",
-        { ids: chunk }
+        endpoint,
+        { ids: chunk },
+        undefined,
+        baseUrl
       );
       Object.assign(results, response);
     }
@@ -865,14 +958,19 @@ export class EnsemblApiClient {
 
   async batchLookupSymbols(
     species: string,
-    symbols: string[]
+    symbols: string[],
+    assembly?: string
   ): Promise<Record<string, any>> {
+    const endpoint = `/lookup/symbol/${species}`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const chunks = this.chunk(symbols, EnsemblApiClient.BATCH_LIMIT);
     const results: Record<string, any> = {};
     for (const chunk of chunks) {
       const response = await this.makePostRequest<Record<string, any>>(
-        `/lookup/symbol/${species}`,
-        { symbols: chunk }
+        endpoint,
+        { symbols: chunk },
+        undefined,
+        baseUrl
       );
       Object.assign(results, response);
     }
@@ -881,17 +979,21 @@ export class EnsemblApiClient {
 
   async batchSequenceIds(
     ids: string[],
-    type?: string
+    type?: string,
+    assembly?: string
   ): Promise<any[]> {
+    const endpoint = "/sequence/id";
+    const baseUrl = this.resolveServerForArgs({ assembly }, endpoint);
     const params: Record<string, string> = {};
     if (type) params.type = type;
     const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
     const results: any[] = [];
     for (const chunk of chunks) {
       const response = await this.makePostRequest<any[]>(
-        "/sequence/id",
+        endpoint,
         { ids: chunk },
-        params
+        params,
+        baseUrl
       );
       results.push(...response);
     }
@@ -900,27 +1002,36 @@ export class EnsemblApiClient {
 
   async batchSequenceRegions(
     species: string,
-    regions: string[]
+    regions: string[],
+    assembly?: string
   ): Promise<any[]> {
+    const endpoint = `/sequence/region/${species}`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const chunks = this.chunk(regions, EnsemblApiClient.BATCH_LIMIT);
     const results: any[] = [];
     for (const chunk of chunks) {
       const response = await this.makePostRequest<any[]>(
-        `/sequence/region/${species}`,
-        { regions: chunk }
+        endpoint,
+        { regions: chunk },
+        undefined,
+        baseUrl
       );
       results.push(...response);
     }
     return results;
   }
 
-  async batchVepIds(species: string, ids: string[]): Promise<any[]> {
+  async batchVepIds(species: string, ids: string[], assembly?: string): Promise<any[]> {
+    const endpoint = `/vep/${species}/id`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
     const results: any[] = [];
     for (const chunk of chunks) {
       const response = await this.makePostRequest<any[]>(
-        `/vep/${species}/id`,
-        { ids: chunk }
+        endpoint,
+        { ids: chunk },
+        undefined,
+        baseUrl
       );
       results.push(...response);
     }
@@ -929,14 +1040,19 @@ export class EnsemblApiClient {
 
   async batchVepHgvs(
     species: string,
-    notations: string[]
+    notations: string[],
+    assembly?: string
   ): Promise<any[]> {
+    const endpoint = `/vep/${species}/hgvs`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const chunks = this.chunk(notations, EnsemblApiClient.BATCH_LIMIT);
     const results: any[] = [];
     for (const chunk of chunks) {
       const response = await this.makePostRequest<any[]>(
-        `/vep/${species}/hgvs`,
-        { hgvs_notations: chunk }
+        endpoint,
+        { hgvs_notations: chunk },
+        undefined,
+        baseUrl
       );
       results.push(...response);
     }
@@ -945,14 +1061,19 @@ export class EnsemblApiClient {
 
   async batchVariationIds(
     species: string,
-    ids: string[]
+    ids: string[],
+    assembly?: string
   ): Promise<Record<string, any>> {
+    const endpoint = `/variation/${species}`;
+    const baseUrl = this.resolveServerForArgs({ assembly, species }, endpoint);
     const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
     const results: Record<string, any> = {};
     for (const chunk of chunks) {
       const response = await this.makePostRequest<Record<string, any>>(
-        `/variation/${species}`,
-        { ids: chunk }
+        endpoint,
+        { ids: chunk },
+        undefined,
+        baseUrl
       );
       Object.assign(results, response);
     }

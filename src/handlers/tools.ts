@@ -17,6 +17,14 @@ function handleValidationError(toolName: string, validation: ValidationResult) {
 
 export const ensemblClient = new EnsemblApiClient();
 
+/** Shared assembly property for tools that support GRCh37/GRCh38 routing. */
+const ASSEMBLY_PROPERTY = {
+  type: "string" as const,
+  description:
+    "Genome assembly version. Use 'GRCh37' (or 'hg19') for human GRCh37 data, 'GRCh38' (or 'hg38', default) for current assembly. Only affects human queries — ignored for other species.",
+  enum: ["GRCh38", "GRCh37", "hg38", "hg19"],
+};
+
 export const ensemblTools: Tool[] = [
   {
     name: "ensembl_feature_overlap",
@@ -57,6 +65,7 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return (default: 50). Use a higher value to see more results.",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       oneOf: [{ required: ["region"] }, { required: ["feature_id"] }],
     },
@@ -94,6 +103,7 @@ export const ensemblTools: Tool[] = [
           description:
             "Type of regulatory feature (e.g., 'RegulatoryFeature', 'MotifFeature', 'TF_binding_site')",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [
         { required: ["region"] },
@@ -174,6 +184,7 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return for species lists (default: 50).",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [{ required: ["info_type"] }, { required: ["archive_id"] }],
     },
@@ -216,6 +227,7 @@ export const ensemblTools: Tool[] = [
           description:
             "External database name for xrefs lookup (e.g., 'HGNC', 'UniProtKB/Swiss-Prot', 'RefSeq_mRNA')",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       required: ["identifier"],
     },
@@ -258,6 +270,7 @@ export const ensemblTools: Tool[] = [
           enum: ["soft", "hard"],
           description: "Mask repeats (soft=lowercase, hard=N)",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       required: ["identifier"],
     },
@@ -300,6 +313,7 @@ export const ensemblTools: Tool[] = [
           description: "Species name (e.g., 'homo_sapiens', 'mus_musculus')",
           default: "homo_sapiens",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       required: ["coordinates", "mapping_type"],
     },
@@ -359,6 +373,7 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return (default: 100). Use a higher value to see more results.",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [
         { required: ["gene_id", "analysis_type"] },
@@ -426,6 +441,7 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return (default: 50). Use a higher value to see more results.",
         },
+        assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [
         { required: ["variant_id"] },
@@ -561,7 +577,7 @@ export async function handleLookup(args: any) {
 
     // Batch mode: identifier is an array
     if (Array.isArray(identifier)) {
-      const { lookup_type = "id", species = "homo_sapiens" } = normalizedArgs;
+      const { lookup_type = "id", species = "homo_sapiens", assembly } = normalizedArgs;
       logger.info("tool_call", {
         tool: "ensembl_lookup",
         mode: "batch",
@@ -573,9 +589,9 @@ export async function handleLookup(args: any) {
       }
 
       if (lookup_type === "symbol") {
-        return await ensemblClient.batchLookupSymbols(species, identifier);
+        return await ensemblClient.batchLookupSymbols(species, identifier, assembly);
       } else {
-        return await ensemblClient.batchLookupIds(identifier);
+        return await ensemblClient.batchLookupIds(identifier, assembly);
       }
     }
 
@@ -596,7 +612,7 @@ export async function handleSequence(args: any) {
 
     // Batch mode: identifier is an array
     if (Array.isArray(identifier)) {
-      const { sequence_type = "genomic", species = "homo_sapiens" } = normalizedArgs;
+      const { sequence_type = "genomic", species = "homo_sapiens", assembly } = normalizedArgs;
       logger.info("tool_call", {
         tool: "ensembl_sequence",
         mode: "batch",
@@ -613,10 +629,10 @@ export async function handleSequence(args: any) {
         const normalizedRegions = identifier.map(
           (r: string) => normalizeEnsemblInputs({ region: r }).region
         );
-        return await ensemblClient.batchSequenceRegions(species, normalizedRegions);
+        return await ensemblClient.batchSequenceRegions(species, normalizedRegions, assembly);
       } else {
         const type = sequence_type !== "genomic" ? sequence_type : undefined;
-        return await ensemblClient.batchSequenceIds(identifier, type);
+        return await ensemblClient.batchSequenceIds(identifier, type, assembly);
       }
     }
 
@@ -661,7 +677,7 @@ export async function handleVariation(args: any) {
     const normalizedArgs = normalizeEnsemblInputs(args);
     const validation = validateToolInput("ensembl_variation", normalizedArgs);
     if (!validation.valid) return handleValidationError("ensembl_variation", validation);
-    const { variant_id, hgvs_notation, species = "homo_sapiens" } = normalizedArgs;
+    const { variant_id, hgvs_notation, species = "homo_sapiens", assembly } = normalizedArgs;
 
     // Batch mode: variant_id is an array
     if (Array.isArray(variant_id)) {
@@ -676,9 +692,9 @@ export async function handleVariation(args: any) {
       }
 
       if (normalizedArgs.analysis_type === "vep") {
-        return await ensemblClient.batchVepIds(species, variant_id);
+        return await ensemblClient.batchVepIds(species, variant_id, assembly);
       } else {
-        return await ensemblClient.batchVariationIds(species, variant_id);
+        return await ensemblClient.batchVariationIds(species, variant_id, assembly);
       }
     }
 
@@ -694,7 +710,7 @@ export async function handleVariation(args: any) {
         throw new Error("hgvs_notation array must not be empty");
       }
 
-      return await ensemblClient.batchVepHgvs(species, hgvs_notation);
+      return await ensemblClient.batchVepHgvs(species, hgvs_notation, assembly);
     }
 
     // Single mode

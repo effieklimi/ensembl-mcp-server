@@ -9,6 +9,7 @@ import {
   validateSequenceType,
   validateBatchArray,
   validateToolInput,
+  validateAssembly,
 } from "../../src/utils/input-validator.js";
 
 describe("validateEnsemblId", () => {
@@ -425,5 +426,66 @@ describe("validateToolInput", () => {
 
   it("passes unknown tool through", () => {
     expect(validateToolInput("unknown_tool", { anything: "goes" }).valid).toBe(true);
+  });
+
+  it("ensembl_lookup - rejects invalid assembly", () => {
+    const result = validateToolInput("ensembl_lookup", { identifier: "BRCA1", assembly: "mm10" });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Unknown assembly");
+  });
+
+  it("ensembl_lookup - accepts valid assembly", () => {
+    expect(validateToolInput("ensembl_lookup", { identifier: "BRCA1", assembly: "GRCh37" }).valid).toBe(true);
+  });
+
+  it("ensembl_feature_overlap - rejects invalid assembly", () => {
+    const result = validateToolInput("ensembl_feature_overlap", { region: "17:7565096-7590856", assembly: "hg100" });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Unknown assembly");
+  });
+
+  it("ensembl_variation - accepts hg19 assembly", () => {
+    expect(validateToolInput("ensembl_variation", { variant_id: "rs699", assembly: "hg19" }).valid).toBe(true);
+  });
+});
+
+describe("validateAssembly", () => {
+  it("accepts GRCh37", () => {
+    expect(validateAssembly("GRCh37").valid).toBe(true);
+  });
+
+  it("accepts GRCh38", () => {
+    expect(validateAssembly("GRCh38").valid).toBe(true);
+  });
+
+  it("accepts hg19", () => {
+    expect(validateAssembly("hg19").valid).toBe(true);
+  });
+
+  it("accepts hg38", () => {
+    expect(validateAssembly("hg38").valid).toBe(true);
+  });
+
+  it("accepts case-insensitively", () => {
+    expect(validateAssembly("grch37").valid).toBe(true);
+    expect(validateAssembly("GRCH38").valid).toBe(true);
+    expect(validateAssembly("HG19").valid).toBe(true);
+  });
+
+  it("passes empty string (optional)", () => {
+    expect(validateAssembly("").valid).toBe(true);
+  });
+
+  it("rejects mm10", () => {
+    const result = validateAssembly("mm10");
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Unknown assembly");
+    expect(result.suggestion).toContain("GRCh37");
+  });
+
+  it("rejects unknown assembly", () => {
+    const result = validateAssembly("T2T-CHM13");
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Unknown assembly");
   });
 });

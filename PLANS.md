@@ -1,6 +1,6 @@
 # Ensembl MCP Server - Improvement Plans
 
-> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), and Plan 9 (input validation) have been implemented. The plans below cover the next round of improvements.
+> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), Plan 9 (input validation), and Plan 10 (GRCh37 support) have been implemented. The plans below cover the next round of improvements.
 
 ---
 
@@ -22,45 +22,9 @@
 
 ---
 
-## Plan 10: GRCh37 Support via Dedicated Server
+## ~~Plan 10: GRCh37 Support via Dedicated Server~~ (Implemented)
 
-### Problem
-All requests currently go to `rest.ensembl.org` which serves GRCh38 data. Ensembl maintains `grch37.rest.ensembl.org` for GRCh37/hg19 queries. The input normalizer recognizes GRCh37/hg19 assembly names but doesn't route to the correct server, so users get GRCh38 data regardless.
-
-### Approach
-Route requests to the correct Ensembl server based on the assembly specified in the tool arguments.
-
-### Files to Modify
-
-**Modify: `src/utils/ensembl-api.ts`**
-- Change `baseUrl` from a fixed string to a method: `getBaseUrl(assembly?: string): string`
-  - `GRCh38` / `hg38` / default -> `https://rest.ensembl.org`
-  - `GRCh37` / `hg19` -> `https://grch37.rest.ensembl.org`
-- Update `makeRequest()` and `makePostRequest()` to accept an optional `assembly` parameter
-- Cache keys must include the server to avoid cross-contamination:
-  ```
-  key = `${server}:${releaseVersion}:${endpoint}?${sortedParams}`
-  ```
-
-**Modify: `src/utils/input-normalizer.ts`**
-- Already normalizes assembly names -- add a `getServer()` export that maps assembly to base URL
-- Ensure hg19/hg38 aliases are handled
-
-**Modify: `src/handlers/tools.ts`**
-- Pass `assembly` argument through to API client methods where available
-- Tools that accept region inputs (`ensembl_feature_overlap`, `ensembl_sequence`, `ensembl_mapping`, `ensembl_variation`) should propagate the assembly
-
-### Edge Cases
-- Not all endpoints are available on grch37.rest.ensembl.org (e.g., some comparative genomics)
-- If an endpoint 404s on GRCh37 server, fall back to GRCh38 with a warning
-- VEP on GRCh37 uses different annotation sets
-
-### Testing
-- Test same gene lookup on both servers, verify different coordinates
-- Test assembly lift-over between GRCh37 and GRCh38
-
-### Size Estimate
-~40 lines in ensembl-api.ts, ~20 lines in input-normalizer.ts, ~20 lines in tools.ts.
+> Implemented with dynamic server routing based on assembly argument. Added `resolveBaseUrl()`, `getServerIdentifier()`, `checkGrch37Support()` to `src/utils/species-data.ts`. Cache keys include server prefix for isolation. Per-server release version tracking via `Map<string, string>`. All 15+ API methods and 7 batch methods thread `baseUrl` through. Assembly parameter added to 8 tool schemas. `validateAssembly()` added to input validator. Unsupported GRCh37 endpoints (homology, genetree, cafe, alignment) fail fast with clear error. 187 tests across 7 files, all passing.
 
 ---
 
@@ -229,7 +193,7 @@ Use MCP's streaming capabilities for tools that can return large payloads.
 | ~~2~~ | ~~Plan 8: MCP Resources & Prompts~~ | ~~High (new capabilities)~~ | ~~Done~~ |
 | ~~3~~ | ~~Plan 9: Input validation~~ | ~~High (faster failures, less API load)~~ | ~~Done~~ |
 | 4 | Plan 12: CI/CD | High (quality gate) | Low |
-| 5 | Plan 10: GRCh37 support | Medium (unlocks hg19 users) | Low |
+| ~~5~~ | ~~Plan 10: GRCh37 support~~ | ~~Medium (unlocks hg19 users)~~ | ~~Done~~ |
 | 6 | Plan 11: Diagnostics tool | Medium (operational visibility) | Low |
 | 7 | Plan 13: Pagination | Medium (better data access) | Low |
 | 8 | Plan 14: Streaming | Low (nice-to-have) | Medium |

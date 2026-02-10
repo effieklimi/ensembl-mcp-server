@@ -121,4 +121,36 @@ describe("ResponseCache", () => {
     expect(cache.size).toBe(1);
     expect(cache.get("k")).toBe("v2");
   });
+
+  it("includes server prefix in key when provided", () => {
+    const cache = new ResponseCache();
+    const key = cache.buildKey("114", "/lookup/id/ENSG00000141510", undefined, "grch37");
+    expect(key).toMatch(/^grch37:114:/);
+  });
+
+  it("produces different keys for different server prefixes", () => {
+    const cache = new ResponseCache();
+    const key37 = cache.buildKey("114", "/lookup/id/ENSG00000141510", undefined, "grch37");
+    const key38 = cache.buildKey("114", "/lookup/id/ENSG00000141510", undefined, "grch38");
+    expect(key37).not.toBe(key38);
+    expect(key37).toContain("grch37:");
+    expect(key38).toContain("grch38:");
+  });
+
+  it("omits server prefix when not provided", () => {
+    const cache = new ResponseCache();
+    const key = cache.buildKey("114", "/lookup/id/ENSG00000141510");
+    expect(key).toBe("114:/lookup/id/ENSG00000141510");
+    expect(key).not.toContain("grch");
+  });
+
+  it("isolates cache entries by server prefix", () => {
+    const cache = new ResponseCache();
+    const key37 = cache.buildKey("114", "/lookup/id/ENSG00000141510", undefined, "grch37");
+    const key38 = cache.buildKey("114", "/lookup/id/ENSG00000141510", undefined, "grch38");
+    cache.set(key37, { assembly: "GRCh37" }, "114");
+    cache.set(key38, { assembly: "GRCh38" }, "114");
+    expect(cache.get(key37)).toEqual({ assembly: "GRCh37" });
+    expect(cache.get(key38)).toEqual({ assembly: "GRCh38" });
+  });
 });

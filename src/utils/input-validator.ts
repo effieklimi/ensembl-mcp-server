@@ -57,6 +57,28 @@ function findClosestMatch(
 }
 
 // ---------------------------------------------------------------------------
+// Assembly validator
+// ---------------------------------------------------------------------------
+
+const VALID_ASSEMBLIES = new Set(["grch37", "grch38", "hg19", "hg38"]);
+
+/**
+ * Validate genome assembly name. Accepts GRCh37, GRCh38, hg19, hg38 (case-insensitive).
+ */
+export function validateAssembly(assembly: string): ValidationResult {
+  if (!assembly || typeof assembly !== "string") return VALID; // optional
+  if (!VALID_ASSEMBLIES.has(assembly.toLowerCase())) {
+    return {
+      valid: false,
+      message: `Unknown assembly '${assembly}'.`,
+      suggestion:
+        "Valid assemblies: GRCh37 (hg19), GRCh38 (hg38). GRCh37 is only supported for human data.",
+    };
+  }
+  return VALID;
+}
+
+// ---------------------------------------------------------------------------
 // Individual validators
 // ---------------------------------------------------------------------------
 
@@ -308,6 +330,10 @@ function validateFeatureOverlap(args: Record<string, any>): ValidationResult {
     const r = validateSpecies(args.species);
     if (!r.valid) return r;
   }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
+    if (!r.valid) return r;
+  }
   return VALID;
 }
 
@@ -328,6 +354,10 @@ function validateRegulatory(args: Record<string, any>): ValidationResult {
   }
   if (args.species) {
     const r = validateSpecies(args.species);
+    if (!r.valid) return r;
+  }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
   return VALID;
@@ -374,6 +404,10 @@ function validateMeta(args: Record<string, any>): ValidationResult {
     const r = validateSpecies(args.species);
     if (!r.valid) return r;
   }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
+    if (!r.valid) return r;
+  }
   return VALID;
 }
 
@@ -390,6 +424,10 @@ function validateLookup(args: Record<string, any>): ValidationResult {
   }
   if (args.species) {
     const r = validateSpecies(args.species);
+    if (!r.valid) return r;
+  }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
   return VALID;
@@ -426,6 +464,10 @@ function validateSequence(args: Record<string, any>): ValidationResult {
     const r = validateSpecies(args.species);
     if (!r.valid) return r;
   }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
+    if (!r.valid) return r;
+  }
   return VALID;
 }
 
@@ -446,6 +488,10 @@ function validateMapping(args: Record<string, any>): ValidationResult {
   }
   if (args.species) {
     const r = validateSpecies(args.species);
+    if (!r.valid) return r;
+  }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
   return VALID;
@@ -485,6 +531,10 @@ function validateCompara(args: Record<string, any>): ValidationResult {
     const r = validateSpecies(args.target_species);
     if (!r.valid) return r;
   }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
+    if (!r.valid) return r;
+  }
   return VALID;
 }
 
@@ -519,6 +569,10 @@ function validateVariation(args: Record<string, any>): ValidationResult {
   }
   if (args.species) {
     const r = validateSpecies(args.species);
+    if (!r.valid) return r;
+  }
+  if (args.assembly) {
+    const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
   return VALID;
