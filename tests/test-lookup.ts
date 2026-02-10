@@ -5,7 +5,7 @@
  * Tests ID/symbol lookup, cross-references, and variant recoding
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
 
 const client = new EnsemblApiClient();
 

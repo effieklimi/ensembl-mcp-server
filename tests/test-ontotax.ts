@@ -5,7 +5,7 @@
  * Tests ontology term search and NCBI taxonomy queries
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
 
 const client = new EnsemblApiClient();
 

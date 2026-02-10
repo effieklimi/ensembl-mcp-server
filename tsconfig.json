@@ -3,13 +3,13 @@
     // Environment setup & latest features
     "lib": ["ESNext"],
     "target": "ESNext",
-    "module": "Preserve",
+    "module": "NodeNext",
     "moduleDetection": "force",
     "types": ["node"],
     "allowJs": true,
 
     // Build mode
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "noEmit": false,
     "outDir": "dist",
     "rootDir": ".",

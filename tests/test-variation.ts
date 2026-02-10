@@ -5,7 +5,7 @@
  * Tests variant analysis, VEP predictions, LD analysis, and phenotype mapping
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
 
 const client = new EnsemblApiClient();
 

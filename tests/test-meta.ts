@@ -5,7 +5,7 @@
  * Tests server metadata, species info, assemblies, and diagnostics
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
 
 const client = new EnsemblApiClient();
 

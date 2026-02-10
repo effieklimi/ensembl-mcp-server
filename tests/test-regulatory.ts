@@ -5,7 +5,7 @@
  * Tests protein features, domains, and binding matrices
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
 
 const client = new EnsemblApiClient();
 

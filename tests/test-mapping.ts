@@ -5,7 +5,7 @@
  * Tests coordinate transformations between genomic, cDNA, CDS, and protein coordinates
  */
 
-import { EnsemblApiClient } from "../src/utils/ensembl-api";
+import { EnsemblApiClient } from "../src/utils/ensembl-api.js";
 
 const client = new EnsemblApiClient();
 
