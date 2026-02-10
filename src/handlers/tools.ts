@@ -1,6 +1,9 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { EnsemblApiClient } from "../utils/ensembl-api.js";
 import { normalizeEnsemblInputs } from "../utils/input-normalizer.js";
+import { logger } from "../utils/logger.js";
+import { processResponse } from "../utils/response-processor.js";
+import { EnsemblError } from "../utils/error-handler.js";
 
 const ensemblClient = new EnsemblApiClient();
 
@@ -38,6 +41,11 @@ export const ensemblTools: Tool[] = [
           type: "string",
           description:
             "Filter by biotype (e.g., 'protein_coding', 'lncRNA', 'miRNA', 'pseudogene')",
+        },
+        max_results: {
+          type: "number",
+          description:
+            "Maximum number of results to return (default: 50). Use a higher value to see more results.",
         },
       },
       oneOf: [{ required: ["region"] }, { required: ["feature_id"] }],
@@ -151,6 +159,11 @@ export const ensemblTools: Tool[] = [
           description:
             "Ensembl division name (e.g., 'vertebrates', 'plants', 'fungi', 'metazoa')",
         },
+        max_results: {
+          type: "number",
+          description:
+            "Maximum number of results to return for species lists (default: 50).",
+        },
       },
       anyOf: [{ required: ["info_type"] }, { required: ["archive_id"] }],
     },
@@ -164,9 +177,12 @@ export const ensemblTools: Tool[] = [
       type: "object",
       properties: {
         identifier: {
-          type: "string",
+          oneOf: [
+            { type: "string" },
+            { type: "array", items: { type: "string" } },
+          ],
           description:
-            "ID or symbol to look up (gene, transcript, variant, etc.) (e.g., 'ENSG00000141510', 'BRCA1', 'rs699', 'ENST00000288602')",
+            "ID or symbol to look up. Pass a single string or an array for batch lookup (e.g., 'BRCA1' or ['BRCA1', 'TP53', 'EGFR']). Batch supports up to 200 identifiers.",
         },
         lookup_type: {
           type: "string",
@@ -203,9 +219,12 @@ export const ensemblTools: Tool[] = [
       type: "object",
       properties: {
         identifier: {
-          type: "string",
+          oneOf: [
+            { type: "string" },
+            { type: "array", items: { type: "string" } },
+          ],
           description:
-            "Feature ID (gene, transcript, etc.) OR genomic region in format 'chr:start-end' (e.g., 'ENSG00000141510', 'ENST00000288602', '17:7565096-7590856', 'X:1000000-2000000')",
+            "Feature ID, genomic region, or an array of either for batch retrieval. Single: 'ENSG00000141510' or '17:7565096-7590856'. Batch: ['ENSG00000141510', 'ENST00000288602']. Up to 200 per request.",
         },
         sequence_type: {
           type: "string",
@@ -237,7 +256,7 @@ export const ensemblTools: Tool[] = [
   {
     name: "ensembl_mapping",
     description:
-      "Map coordinates between different coordinate systems (genomic ↔ cDNA/CDS/protein) and between genome assemblies. Covers /map/* endpoints.",
+      "Map coordinates between different coordinate systems (genomic \u2194 cDNA/CDS/protein) and between genome assemblies. Covers /map/* endpoints.",
     inputSchema: {
       type: "object",
       properties: {
@@ -325,6 +344,11 @@ export const ensemblTools: Tool[] = [
           description: "Include aligned sequences",
           default: false,
         },
+        max_results: {
+          type: "number",
+          description:
+            "Maximum number of results to return (default: 100). Use a higher value to see more results.",
+        },
       },
       anyOf: [
         { required: ["gene_id", "analysis_type"] },
@@ -342,9 +366,12 @@ export const ensemblTools: Tool[] = [
       type: "object",
       properties: {
         variant_id: {
-          type: "string",
+          oneOf: [
+            { type: "string" },
+            { type: "array", items: { type: "string" } },
+          ],
           description:
-            "Variant ID (e.g., 'rs699', 'rs1042779', 'COSM476') or HGVS notation (e.g., '17:g.7579472G>C')",
+            "Variant ID(s). Single string or array for batch (e.g., 'rs699' or ['rs699', 'rs1042779']). Up to 200 per request.",
         },
         region: {
           type: "string",
@@ -352,9 +379,12 @@ export const ensemblTools: Tool[] = [
             "Genomic region in format 'chr:start-end' for variant search (e.g., '17:7565096-7590856', 'X:1000000-2000000', '1:100000-200000')",
         },
         hgvs_notation: {
-          type: "string",
+          oneOf: [
+            { type: "string" },
+            { type: "array", items: { type: "string" } },
+          ],
           description:
-            "HGVS notation for VEP analysis (e.g., '17:g.7579472G>C', 'ENST00000288602.6:c.1799T>A', 'NM_007294.3:c.1799T>A')",
+            "HGVS notation(s) for VEP analysis. Single string or array for batch VEP (e.g., '17:g.7579472G>C' or ['17:g.7579472G>C', 'ENST00000288602.6:c.1799T>A']). Up to 200 per request.",
         },
         analysis_type: {
           type: "string",
@@ -380,6 +410,11 @@ export const ensemblTools: Tool[] = [
           type: "string",
           description:
             "Transcript ID for haplotype analysis (e.g., 'ENST00000288602', 'ENST00000350283')",
+        },
+        max_results: {
+          type: "number",
+          description:
+            "Maximum number of results to return (default: 50). Use a higher value to see more results.",
         },
       },
       anyOf: [
@@ -430,130 +465,228 @@ export const ensemblTools: Tool[] = [
       ],
     },
   },
+
 ];
+
+function handleError(tool: string, error: unknown) {
+  const msg = error instanceof Error ? error.message : "Unknown error";
+  logger.error("tool_error", { tool, error: msg });
+  if (error instanceof EnsemblError) {
+    return error.toJSON();
+  }
+  return { error: msg, success: false };
+}
 
 // Tool execution handlers
 export async function handleFeatureOverlap(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    logger.info("tool_call", { tool: "ensembl_feature_overlap", args: normalizedArgs });
+    let result;
     if (normalizedArgs.region) {
-      return await ensemblClient.getOverlapByRegion(normalizedArgs);
+      result = await ensemblClient.getOverlapByRegion(normalizedArgs);
     } else if (normalizedArgs.feature_id) {
-      return await ensemblClient.getOverlapById(normalizedArgs);
+      result = await ensemblClient.getOverlapById(normalizedArgs);
+    } else {
+      throw new Error("Either region or feature_id must be provided");
     }
-    throw new Error("Either region or feature_id must be provided");
+    return processResponse("ensembl_feature_overlap", result, {
+      maxResults: args.max_results,
+    });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_feature_overlap", error);
   }
 }
 
 export async function handleRegulatory(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
-    return await ensemblClient.getRegulatoryFeatures(normalizedArgs);
+    logger.info("tool_call", { tool: "ensembl_regulatory", args: normalizedArgs });
+    const result = await ensemblClient.getRegulatoryFeatures(normalizedArgs);
+    return processResponse("ensembl_regulatory", result, {
+      maxResults: args.max_results,
+    });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_regulatory", error);
   }
 }
 
 export async function handleProteinFeatures(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    logger.info("tool_call", { tool: "ensembl_protein_features", args: normalizedArgs });
     return await ensemblClient.getProteinFeatures(normalizedArgs);
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_protein_features", error);
   }
 }
 
 export async function handleMeta(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
-    return await ensemblClient.getMetaInfo(normalizedArgs);
+    logger.info("tool_call", { tool: "ensembl_meta", args: normalizedArgs });
+    const result = await ensemblClient.getMetaInfo(normalizedArgs);
+    return processResponse("ensembl_meta", result, {
+      maxResults: args.max_results,
+    });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_meta", error);
   }
 }
 
 export async function handleLookup(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const { identifier } = normalizedArgs;
+
+    // Batch mode: identifier is an array
+    if (Array.isArray(identifier)) {
+      const { lookup_type = "id", species = "homo_sapiens" } = normalizedArgs;
+      logger.info("tool_call", {
+        tool: "ensembl_lookup",
+        mode: "batch",
+        args: { lookup_type, species, count: identifier.length },
+      });
+
+      if (identifier.length === 0) {
+        throw new Error("identifier array must not be empty");
+      }
+
+      if (lookup_type === "symbol") {
+        return await ensemblClient.batchLookupSymbols(species, identifier);
+      } else {
+        return await ensemblClient.batchLookupIds(identifier);
+      }
+    }
+
+    // Single mode
+    logger.info("tool_call", { tool: "ensembl_lookup", args: normalizedArgs });
     return await ensemblClient.performLookup(normalizedArgs);
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_lookup", error);
   }
 }
 
 export async function handleSequence(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
-    return await ensemblClient.getSequenceData(normalizedArgs);
+    const { identifier } = normalizedArgs;
+
+    // Batch mode: identifier is an array
+    if (Array.isArray(identifier)) {
+      const { sequence_type = "genomic", species = "homo_sapiens" } = normalizedArgs;
+      logger.info("tool_call", {
+        tool: "ensembl_sequence",
+        mode: "batch",
+        args: { sequence_type, species, count: identifier.length },
+      });
+
+      if (identifier.length === 0) {
+        throw new Error("identifier array must not be empty");
+      }
+
+      // Detect if identifiers are genomic regions (contain ':')
+      const isRegion = identifier[0]?.includes(":");
+      if (isRegion) {
+        const normalizedRegions = identifier.map(
+          (r: string) => normalizeEnsemblInputs({ region: r }).region
+        );
+        return await ensemblClient.batchSequenceRegions(species, normalizedRegions);
+      } else {
+        const type = sequence_type !== "genomic" ? sequence_type : undefined;
+        return await ensemblClient.batchSequenceIds(identifier, type);
+      }
+    }
+
+    // Single mode
+    logger.info("tool_call", { tool: "ensembl_sequence", args: normalizedArgs });
+    const result = await ensemblClient.getSequenceData(normalizedArgs);
+    return processResponse("ensembl_sequence", result);
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_sequence", error);
   }
 }
 
 export async function handleMapping(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    logger.info("tool_call", { tool: "ensembl_mapping", args: normalizedArgs });
     return await ensemblClient.mapCoordinates(normalizedArgs);
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_mapping", error);
   }
 }
 
 export async function handleCompara(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
-    return await ensemblClient.getComparativeData(normalizedArgs);
+    logger.info("tool_call", { tool: "ensembl_compara", args: normalizedArgs });
+    const result = await ensemblClient.getComparativeData(normalizedArgs);
+    return processResponse("ensembl_compara", result, {
+      maxResults: args.max_results,
+    });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_compara", error);
   }
 }
 
 export async function handleVariation(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
-    return await ensemblClient.getVariationData(normalizedArgs);
+    const { variant_id, hgvs_notation, species = "homo_sapiens" } = normalizedArgs;
+
+    // Batch mode: variant_id is an array
+    if (Array.isArray(variant_id)) {
+      logger.info("tool_call", {
+        tool: "ensembl_variation",
+        mode: "batch",
+        args: { analysis_type: normalizedArgs.analysis_type, species, count: variant_id.length },
+      });
+
+      if (variant_id.length === 0) {
+        throw new Error("variant_id array must not be empty");
+      }
+
+      if (normalizedArgs.analysis_type === "vep") {
+        return await ensemblClient.batchVepIds(species, variant_id);
+      } else {
+        return await ensemblClient.batchVariationIds(species, variant_id);
+      }
+    }
+
+    // Batch mode: hgvs_notation is an array
+    if (Array.isArray(hgvs_notation)) {
+      logger.info("tool_call", {
+        tool: "ensembl_variation",
+        mode: "batch",
+        args: { analysis_type: "vep_hgvs", species, count: hgvs_notation.length },
+      });
+
+      if (hgvs_notation.length === 0) {
+        throw new Error("hgvs_notation array must not be empty");
+      }
+
+      return await ensemblClient.batchVepHgvs(species, hgvs_notation);
+    }
+
+    // Single mode
+    logger.info("tool_call", { tool: "ensembl_variation", args: normalizedArgs });
+    const result = await ensemblClient.getVariationData(normalizedArgs);
+    return processResponse("ensembl_variation", result, {
+      maxResults: args.max_results,
+    });
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_variation", error);
   }
 }
 
 export async function handleOntoTax(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    logger.info("tool_call", { tool: "ensembl_ontotax", args: normalizedArgs });
     return await ensemblClient.getOntologyTaxonomy(normalizedArgs);
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "Unknown error",
-      success: false,
-    };
+    return handleError("ensembl_ontotax", error);
   }
 }
+

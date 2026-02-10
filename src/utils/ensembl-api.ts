@@ -8,10 +8,20 @@ import type {
   VariantSearchParams,
   SequenceParams,
 } from "../types/ensembl.js";
+import { logger } from "./logger.js";
+import { enrichError, enrichSpeciesError, EnsemblError } from "./error-handler.js";
+import { ResponseCache } from "./cache.js";
 
 interface RateLimiter {
   lastRequestTime: number;
   minInterval: number; // milliseconds between requests
+}
+
+interface RetryConfig {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+  retryableStatuses: Set<number>;
 }
 
 export class EnsemblApiClient {
@@ -20,6 +30,51 @@ export class EnsemblApiClient {
     lastRequestTime: 0,
     minInterval: 100, // 100ms = 10 requests per second (conservative)
   };
+  private readonly retryConfig: RetryConfig = {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 10000,
+    retryableStatuses: new Set([429, 500, 502, 503, 504]),
+  };
+  private readonly cache = new ResponseCache();
+  private releaseVersion: string | null = null;
+  private releaseVersionPromise: Promise<string> | null = null;
+
+  private async getReleaseVersion(): Promise<string> {
+    if (this.releaseVersion) return this.releaseVersion;
+    // Avoid parallel fetches during startup
+    if (this.releaseVersionPromise) return this.releaseVersionPromise;
+
+    this.releaseVersionPromise = (async () => {
+      try {
+        await this.enforceRateLimit();
+        const url = `${this.baseUrl}/info/data`;
+        const response = await fetch(url, {
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+        });
+        if (response.ok) {
+          const data = (await response.json()) as { releases: number[] };
+          this.releaseVersion = String(data.releases?.[0] ?? "unknown");
+        } else {
+          this.releaseVersion = "unknown";
+        }
+      } catch {
+        this.releaseVersion = "unknown";
+      }
+      logger.info("release_version_fetched", { version: this.releaseVersion });
+      return this.releaseVersion!;
+    })();
+
+    return this.releaseVersionPromise;
+  }
+
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  getCacheStats() {
+    return this.cache.getStats();
+  }
 
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
@@ -27,14 +82,168 @@ export class EnsemblApiClient {
 
     if (timeSinceLastRequest < this.rateLimiter.minInterval) {
       const waitTime = this.rateLimiter.minInterval - timeSinceLastRequest;
+      logger.debug("rate_limit_wait", { wait_ms: waitTime });
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
 
     this.rateLimiter.lastRequestTime = Date.now();
   }
 
+  private async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    endpoint: string
+  ): Promise<Response> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: AbortSignal.timeout(30000),
+        });
+
+        if (response.ok) {
+          return response;
+        }
+
+        // Non-retryable status — fail immediately with enriched error
+        if (!this.retryConfig.retryableStatuses.has(response.status)) {
+          const responseBody = await response.text().catch(() => "");
+          throw enrichError(
+            response.status,
+            response.statusText,
+            endpoint,
+            responseBody
+          );
+        }
+
+        // All retries exhausted on a retryable status
+        if (attempt === this.retryConfig.maxRetries) {
+          throw new Error(
+            `Ensembl API error: ${response.status} ${response.statusText} (after ${attempt + 1} attempts)`
+          );
+        }
+
+        // Respect Retry-After header (Ensembl sends this on 429)
+        const retryAfter = response.headers.get("Retry-After");
+        const delay = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : Math.min(
+              this.retryConfig.baseDelay * Math.pow(2, attempt),
+              this.retryConfig.maxDelay
+            );
+        const jitter = Math.random() * delay * 0.25;
+
+        logger.warn("api_retry", {
+          endpoint,
+          attempt: attempt + 1,
+          max_retries: this.retryConfig.maxRetries,
+          status: response.status,
+          delay_ms: Math.round(delay + jitter),
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, delay + jitter));
+        lastError = new Error(`${response.status} ${response.statusText}`);
+      } catch (error) {
+        // EnsemblError from enrichError — not retryable, rethrow
+        if (error instanceof EnsemblError) {
+          throw error;
+        }
+
+        // Network errors (timeout, DNS, connection reset) are retryable
+        if (
+          error instanceof TypeError ||
+          (error as any)?.name === "TimeoutError" ||
+          (error as any)?.code === "ABORT_ERR"
+        ) {
+          if (attempt === this.retryConfig.maxRetries) {
+            throw new Error(
+              `Ensembl API request to ${endpoint} failed after ${attempt + 1} attempts: ${(error as Error).message}`
+            );
+          }
+
+          const delay = Math.min(
+            this.retryConfig.baseDelay * Math.pow(2, attempt),
+            this.retryConfig.maxDelay
+          );
+          const jitter = Math.random() * delay * 0.25;
+
+          logger.warn("api_retry_network", {
+            endpoint,
+            attempt: attempt + 1,
+            max_retries: this.retryConfig.maxRetries,
+            error: (error as Error).message,
+            delay_ms: Math.round(delay + jitter),
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, delay + jitter));
+          lastError = error as Error;
+          continue;
+        }
+        // Unknown errors — rethrow
+        throw error;
+      }
+    }
+
+    throw new Error(
+      `Ensembl API request to ${endpoint} failed after ${this.retryConfig.maxRetries + 1} attempts: ${lastError?.message}`
+    );
+  }
+
   private async makeRequest<T>(
     endpoint: string,
+    params?: Record<string, string>
+  ): Promise<T> {
+    // Check cache before rate limiting or network call
+    const releaseVersion = await this.getReleaseVersion();
+    const cacheKey = this.cache.buildKey(releaseVersion, endpoint, params);
+    const cached = this.cache.get<T>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    await this.enforceRateLimit();
+
+    const url = new URL(`${this.baseUrl}${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+    }
+
+    const start = Date.now();
+    logger.debug("api_request_start", { endpoint, params });
+
+    const response = await this.fetchWithRetry(
+      url.toString(),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      },
+      endpoint
+    );
+
+    logger.info("api_request_complete", {
+      endpoint,
+      status: response.status,
+      duration_ms: Date.now() - start,
+    });
+
+    const data = (await response.json()) as T;
+
+    // Store in cache with endpoint-appropriate TTL
+    const ttl = this.cache.getTtlForEndpoint(endpoint);
+    this.cache.set(cacheKey, data, releaseVersion, ttl);
+
+    return data;
+  }
+
+  private async makePostRequest<T>(
+    endpoint: string,
+    body: object,
     params?: Record<string, string>
   ): Promise<T> {
     await this.enforceRateLimit();
@@ -46,28 +255,48 @@ export class EnsemblApiClient {
       });
     }
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
+    const start = Date.now();
+    logger.debug("api_post_request_start", { endpoint, params });
 
-    if (!response.ok) {
-      throw new Error(
-        `Ensembl API error: ${response.status} ${response.statusText}`
-      );
-    }
+    const response = await this.fetchWithRetry(
+      url.toString(),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      },
+      endpoint
+    );
+
+    logger.info("api_post_request_complete", {
+      endpoint,
+      status: response.status,
+      duration_ms: Date.now() - start,
+    });
 
     return response.json() as T;
   }
+
+  private chunk<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  private static readonly BATCH_LIMIT = 200;
 
   private async validateSpecies(species: string): Promise<void> {
     try {
       // Try to get assembly info for the species - this will fail if species is invalid
       await this.makeRequest(`/info/assembly/${species}`);
     } catch (error) {
-      throw new Error(`Invalid species: ${species}`);
+      // If it's already an EnsemblError from makeRequest, rethrow as a species-specific one
+      throw enrichSpeciesError(species);
     }
   }
 
@@ -617,5 +846,116 @@ export class EnsemblApiClient {
   // Cross-references
   async getGeneXrefs(geneId: string): Promise<any[]> {
     return this.makeRequest(`/xrefs/id/${geneId}`);
+  }
+
+  // Batch operations
+
+  async batchLookupIds(ids: string[]): Promise<Record<string, any>> {
+    const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
+    const results: Record<string, any> = {};
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<Record<string, any>>(
+        "/lookup/id",
+        { ids: chunk }
+      );
+      Object.assign(results, response);
+    }
+    return results;
+  }
+
+  async batchLookupSymbols(
+    species: string,
+    symbols: string[]
+  ): Promise<Record<string, any>> {
+    const chunks = this.chunk(symbols, EnsemblApiClient.BATCH_LIMIT);
+    const results: Record<string, any> = {};
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<Record<string, any>>(
+        `/lookup/symbol/${species}`,
+        { symbols: chunk }
+      );
+      Object.assign(results, response);
+    }
+    return results;
+  }
+
+  async batchSequenceIds(
+    ids: string[],
+    type?: string
+  ): Promise<any[]> {
+    const params: Record<string, string> = {};
+    if (type) params.type = type;
+    const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
+    const results: any[] = [];
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<any[]>(
+        "/sequence/id",
+        { ids: chunk },
+        params
+      );
+      results.push(...response);
+    }
+    return results;
+  }
+
+  async batchSequenceRegions(
+    species: string,
+    regions: string[]
+  ): Promise<any[]> {
+    const chunks = this.chunk(regions, EnsemblApiClient.BATCH_LIMIT);
+    const results: any[] = [];
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<any[]>(
+        `/sequence/region/${species}`,
+        { regions: chunk }
+      );
+      results.push(...response);
+    }
+    return results;
+  }
+
+  async batchVepIds(species: string, ids: string[]): Promise<any[]> {
+    const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
+    const results: any[] = [];
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<any[]>(
+        `/vep/${species}/id`,
+        { ids: chunk }
+      );
+      results.push(...response);
+    }
+    return results;
+  }
+
+  async batchVepHgvs(
+    species: string,
+    notations: string[]
+  ): Promise<any[]> {
+    const chunks = this.chunk(notations, EnsemblApiClient.BATCH_LIMIT);
+    const results: any[] = [];
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<any[]>(
+        `/vep/${species}/hgvs`,
+        { hgvs_notations: chunk }
+      );
+      results.push(...response);
+    }
+    return results;
+  }
+
+  async batchVariationIds(
+    species: string,
+    ids: string[]
+  ): Promise<Record<string, any>> {
+    const chunks = this.chunk(ids, EnsemblApiClient.BATCH_LIMIT);
+    const results: Record<string, any> = {};
+    for (const chunk of chunks) {
+      const response = await this.makePostRequest<Record<string, any>>(
+        `/variation/${species}`,
+        { ids: chunk }
+      );
+      Object.assign(results, response);
+    }
+    return results;
   }
 }

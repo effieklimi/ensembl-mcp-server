@@ -22,6 +22,8 @@ import {
   handleVariation,
   handleOntoTax,
 } from "./src/handlers/tools.js";
+import { logger } from "./src/utils/logger.js";
+import { formatToolResponse } from "./src/utils/formatter.js";
 
 export class EnsemblMCPServer {
   private server: Server;
@@ -51,124 +53,34 @@ export class EnsemblMCPServer {
     });
 
     // Handle tool execution
+    const toolHandlers: Record<string, (args: any) => Promise<unknown>> = {
+      ensembl_feature_overlap: handleFeatureOverlap,
+      ensembl_regulatory: handleRegulatory,
+      ensembl_protein_features: handleProteinFeatures,
+      ensembl_meta: handleMeta,
+      ensembl_lookup: handleLookup,
+      ensembl_sequence: handleSequence,
+      ensembl_mapping: handleMapping,
+      ensembl_compara: handleCompara,
+      ensembl_variation: handleVariation,
+      ensembl_ontotax: handleOntoTax,
+    };
+
     this.server.setRequestHandler(
       CallToolRequestSchema,
       async (request: CallToolRequest) => {
         const { name, arguments: args } = request.params;
 
         try {
-          switch (name) {
-            case "ensembl_feature_overlap":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(
-                      await handleFeatureOverlap(args),
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
+          const handler = toolHandlers[name];
+          if (!handler) throw new Error(`Unknown tool: ${name}`);
 
-            case "ensembl_regulatory":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleRegulatory(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_protein_features":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(
-                      await handleProteinFeatures(args),
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-
-            case "ensembl_meta":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleMeta(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_lookup":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleLookup(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_sequence":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleSequence(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_mapping":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleMapping(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_compara":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleCompara(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_variation":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleVariation(args), null, 2),
-                  },
-                ],
-              };
-
-            case "ensembl_ontotax":
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(await handleOntoTax(args), null, 2),
-                  },
-                ],
-              };
-
-            default:
-              throw new Error(`Unknown tool: ${name}`);
-          }
+          const result = await handler(args);
+          return {
+            content: [
+              { type: "text", text: formatToolResponse(name, result, args) },
+            ],
+          };
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error occurred";
@@ -176,13 +88,10 @@ export class EnsemblMCPServer {
             content: [
               {
                 type: "text",
-                text: JSON.stringify(
-                  {
-                    error: errorMessage,
-                    success: false,
-                  },
-                  null,
-                  2
+                text: formatToolResponse(
+                  name,
+                  { error: errorMessage, success: false },
+                  args
                 ),
               },
             ],
@@ -197,7 +106,7 @@ export class EnsemblMCPServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
 
-    console.error("Ensembl MCP server running on stdio");
+    logger.info("server_start", { version: "1.0.0" });
   }
 }
 

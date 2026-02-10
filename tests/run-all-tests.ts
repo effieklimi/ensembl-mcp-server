@@ -23,6 +23,7 @@ const testFiles = [
   "test-compara.ts",
   "test-variation.ts",
   "test-ontotax.ts",
+  "test-batch.ts",
 ];
 
 const testDescriptions: Record<string, string> = {
@@ -36,6 +37,7 @@ const testDescriptions: Record<string, string> = {
   "test-compara.ts": "Comparative genomics: homology, gene trees",
   "test-variation.ts": "Variant analysis, VEP, LD, phenotypes",
   "test-ontotax.ts": "Ontology and taxonomy searches",
+  "test-batch.ts": "Batch operations (array inputs to lookup, sequence, variation)",
 };
 
 interface TestResult {

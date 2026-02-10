@@ -22,7 +22,8 @@
     "test:mapping": "tsx tests/test-mapping.ts",
     "test:compara": "tsx tests/test-compara.ts",
     "test:variation": "tsx tests/test-variation.ts",
-    "test:ontotax": "tsx tests/test-ontotax.ts"
+    "test:ontotax": "tsx tests/test-ontotax.ts",
+    "test:batch": "tsx tests/test-batch.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
