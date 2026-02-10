@@ -1,6 +1,6 @@
 # Ensembl MCP Server - Improvement Plans
 
-> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), Plan 9 (input validation), and Plan 10 (GRCh37 support) have been implemented. The plans below cover the next round of improvements.
+> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), Plan 9 (input validation), Plan 10 (GRCh37 support), and Plan 12 (CI/CD) have been implemented. The plans below cover the next round of improvements.
 
 ---
 
@@ -88,33 +88,9 @@ Add an `ensembl_diagnostics` tool that exposes internal metrics and a health che
 
 ---
 
-## Plan 12: CI/CD Pipeline
+## ~~Plan 12: CI/CD Pipeline~~ (Implemented)
 
-### Problem
-No automated checks on PRs. Type errors, test failures, and regressions can ship undetected.
-
-### Approach
-Add a GitHub Actions workflow for CI.
-
-### New File: `.github/workflows/ci.yml`
-
-**Jobs:**
-1. **typecheck** -- `tsc --noEmit` (fast, catches type errors)
-2. **unit-tests** -- `vitest run` with coverage report (depends on Plan 7)
-3. **integration-tests** -- `vitest run --project integration` (optional, on schedule or manual trigger only -- avoids hitting Ensembl API on every PR)
-4. **docker-build** -- verify Docker image builds successfully
-
-**Triggers:**
-- Push to `main`
-- Pull requests to `main`
-- Weekly schedule for integration tests
-
-**Coverage:**
-- Upload coverage report as artifact
-- Optionally add coverage badge to README
-
-### Size Estimate
-~60 lines for workflow file.
+> Added `.github/workflows/ci.yml` with three parallel jobs: typecheck (`tsc --noEmit`), unit tests (`vitest run --coverage` with coverage artifact upload), and Docker build verification. Triggers on push to main and pull requests.
 
 ---
 
@@ -192,7 +168,7 @@ Use MCP's streaming capabilities for tools that can return large payloads.
 | ~~1~~ | ~~Plan 7: Vitest migration~~ | ~~High (enables all other testing)~~ | ~~Done~~ |
 | ~~2~~ | ~~Plan 8: MCP Resources & Prompts~~ | ~~High (new capabilities)~~ | ~~Done~~ |
 | ~~3~~ | ~~Plan 9: Input validation~~ | ~~High (faster failures, less API load)~~ | ~~Done~~ |
-| 4 | Plan 12: CI/CD | High (quality gate) | Low |
+| ~~4~~ | ~~Plan 12: CI/CD~~ | ~~High (quality gate)~~ | ~~Done~~ |
 | ~~5~~ | ~~Plan 10: GRCh37 support~~ | ~~Medium (unlocks hg19 users)~~ | ~~Done~~ |
 | 6 | Plan 11: Diagnostics tool | Medium (operational visibility) | Low |
 | 7 | Plan 13: Pagination | Medium (better data access) | Low |
