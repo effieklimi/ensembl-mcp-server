@@ -1,51 +1,12 @@
 # Ensembl MCP Server - Improvement Plans
 
-> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 8 (MCP resources & prompts), and Plan 9 (input validation) have been implemented. The plans below cover the next round of improvements.
+> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), and Plan 9 (input validation) have been implemented. The plans below cover the next round of improvements.
 
 ---
 
-## Plan 7: Proper Test Framework (Vitest)
+## ~~Plan 7: Proper Test Framework (Vitest)~~ (Implemented)
 
-### Problem
-Tests use a custom runner with no coverage reports, no watch mode, and no mocking support. All tests are integration tests that hit the live Ensembl API, making CI unreliable and slow. There's no way to know what percentage of code paths are covered.
-
-### Approach
-Migrate to Vitest (fast, ESM-native, TypeScript out of the box). Add unit tests with mocked API responses alongside existing integration tests.
-
-### Files to Create/Modify
-
-**New file: `vitest.config.ts`**
-- Enable coverage via `@vitest/coverage-v8`
-- Configure two test pools: `unit` (mocked, fast) and `integration` (live API, slow)
-- Set timeout for integration tests to 30s
-
-**Modify: `package.json`**
-- Add `vitest`, `@vitest/coverage-v8` as dev dependencies
-- Update scripts:
-  - `"test"`: `"vitest run"` (unit tests only)
-  - `"test:integration"`: `"vitest run --project integration"`
-  - `"test:coverage"`: `"vitest run --coverage"`
-  - `"test:watch"`: `"vitest"`
-
-**Migrate existing tests:**
-- Convert `tests/test-*.ts` files to use `describe`/`it`/`expect` from Vitest
-- Keep them as integration tests under `tests/integration/`
-- Create new `tests/unit/` directory for mocked tests
-
-**New unit tests to add:**
-- `tests/unit/cache.test.ts` -- LRU eviction, TTL, key generation (no network)
-- `tests/unit/error-handler.test.ts` -- error enrichment for each status code
-- `tests/unit/input-normalizer.test.ts` -- already partially exists, expand it
-- `tests/unit/response-processor.test.ts` -- truncation, field selection
-- `tests/unit/formatter.test.ts` -- markdown/FASTA output formatting
-- `tests/unit/ensembl-api.test.ts` -- mock `fetch`, test retry logic, rate limiting, batch chunking
-
-### Testing
-- Verify all existing integration tests pass under Vitest
-- Target 80%+ line coverage for `src/utils/` via unit tests
-
-### Size Estimate
-~50 lines config, ~200 lines migrating existing tests, ~400 lines new unit tests.
+> Migrated to Vitest with `@vitest/coverage-v8`. Deleted custom test runner and 12 integration test files. Created `vitest.config.ts`, migrated `input-normalizer.test.ts` and `input-validator.test.ts` to Vitest syntax, and added new unit tests for `cache.ts`, `error-handler.ts`, `response-processor.ts`, and `formatter.ts`. 152 tests across 6 files, all passing. Scripts: `npm test`, `npm run test:watch`, `npm run test:coverage`.
 
 ---
 
@@ -264,7 +225,7 @@ Use MCP's streaming capabilities for tools that can return large payloads.
 
 | Priority | Plan | Impact | Effort |
 |---|---|---|---|
-| 1 | Plan 7: Vitest migration | High (enables all other testing) | Medium |
+| ~~1~~ | ~~Plan 7: Vitest migration~~ | ~~High (enables all other testing)~~ | ~~Done~~ |
 | ~~2~~ | ~~Plan 8: MCP Resources & Prompts~~ | ~~High (new capabilities)~~ | ~~Done~~ |
 | ~~3~~ | ~~Plan 9: Input validation~~ | ~~High (faster failures, less API load)~~ | ~~Done~~ |
 | 4 | Plan 12: CI/CD | High (quality gate) | Low |

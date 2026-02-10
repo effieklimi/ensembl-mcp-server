@@ -11,28 +11,19 @@
     "start:bun": "bun index.ts",
     "dev": "tsx --watch index.ts",
     "dev:bun": "bun --watch index.ts",
-    "test": "tsx tests/run-all-tests.ts",
-    "test:normalizer": "tsx tests/input-normalizer.test.ts",
-    "test:validator": "tsx tests/input-validator.test.ts",
-    "test:meta": "tsx tests/test-meta.ts",
-    "test:lookup": "tsx tests/test-lookup.ts",
-    "test:sequence": "tsx tests/test-sequence.ts",
-    "test:overlap": "tsx tests/test-feature-overlap.ts",
-    "test:regulatory": "tsx tests/test-regulatory.ts",
-    "test:protein": "tsx tests/test-protein-features.ts",
-    "test:mapping": "tsx tests/test-mapping.ts",
-    "test:compara": "tsx tests/test-compara.ts",
-    "test:variation": "tsx tests/test-variation.ts",
-    "test:ontotax": "tsx tests/test-ontotax.ts",
-    "test:batch": "tsx tests/test-batch.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "tsx": "^4.19.4",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.18"
   },
   "keywords": [
     "mcp",
