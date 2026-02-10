@@ -1,6 +1,6 @@
 # Ensembl MCP Server - Improvement Plans
 
-> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic) have been implemented. The plans below cover the next round of improvements.
+> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 8 (MCP resources & prompts), and Plan 9 (input validation) have been implemented. The plans below cover the next round of improvements.
 
 ---
 
@@ -49,88 +49,15 @@ Migrate to Vitest (fast, ESM-native, TypeScript out of the box). Add unit tests 
 
 ---
 
-## Plan 8: MCP Resources and Prompts
+## ~~Plan 8: MCP Resources and Prompts~~ (Implemented)
 
-### Problem
-The server only exposes `tools`. MCP also supports `resources` (pre-loadable reference data) and `prompts` (reusable workflows). Clients can't pre-load species lists or assembly info, and there are no guided workflows for common genomics tasks.
-
-### Approach
-Add MCP resources for commonly referenced data and prompts for multi-step analysis workflows.
-
-### Resources to Add
-
-| Resource URI | Description | Data Source |
-|---|---|---|
-| `ensembl://species` | Full species list with assemblies | `/info/species` (cached 24h) |
-| `ensembl://assembly/{species}` | Assembly info for a species | `/info/assembly/{species}` |
-| `ensembl://releases` | Current and recent release info | `/info/data` + `/info/rest` |
-| `ensembl://biotypes` | Available biotype categories | `/info/biotypes` |
-
-### Prompts to Add
-
-| Prompt Name | Description | Steps |
-|---|---|---|
-| `analyze-variant` | Full variant analysis workflow | Look up variant -> VEP annotation -> phenotype associations -> population frequencies |
-| `compare-orthologs` | Cross-species gene comparison | Look up gene -> find orthologs -> compare sequences -> show conservation |
-| `region-survey` | Survey a genomic region | Feature overlap -> regulatory elements -> variants in region -> gene summary |
-| `gene-report` | Comprehensive gene report | Lookup -> transcripts -> protein features -> expression -> homologs |
-
-### Files to Modify
-
-**Modify: `index.ts`**
-- Register resource handlers via `server.setRequestHandler(ListResourcesRequestSchema, ...)`
-- Register resource templates for parameterized URIs (e.g., `ensembl://assembly/{species}`)
-- Register prompt handlers via `server.setRequestHandler(ListPromptsRequestSchema, ...)`
-
-**New file: `src/handlers/resources.ts`**
-- Resource listing and fetching logic
-- Each resource fetches from the API client with aggressive caching
-
-**New file: `src/handlers/prompts.ts`**
-- Prompt definitions with argument schemas
-- Each prompt returns a structured message sequence guiding the LLM through steps
-
-### Size Estimate
-~150 lines for resources, ~200 lines for prompts, ~30 lines in index.ts.
+> Implemented in `eb43ce2`. Added `src/handlers/resources.ts` (species, releases, assembly, biotypes), `src/handlers/prompts.ts` (analyze-variant, compare-orthologs, region-survey, gene-report), and wired into `index.ts` with full MCP resource/prompt protocol support.
 
 ---
 
-## Plan 9: Input Validation Before API Calls
+## ~~Plan 9: Input Validation Before API Calls~~ (Implemented)
 
-### Problem
-Invalid parameters (bad region format, malformed Ensembl IDs, unknown species) currently travel all the way to the Ensembl API before failing. This wastes a network round-trip and API quota, and the resulting error messages are less specific than what we could generate locally.
-
-### Approach
-Add a pre-flight validation layer that catches common mistakes before making HTTP requests.
-
-### Validations to Add
-
-| Input | Validation | Example Rejection |
-|---|---|---|
-| Ensembl stable ID | Match `/^ENS[A-Z]*[GTRPE]\d{11}(\.\d+)?$/` | `"ENSG123"` -> "Invalid Ensembl ID format. Expected 11 digits after prefix (e.g., ENSG00000141510)." |
-| Region string | Match `/^\w+:\d+-\d+$/` after comma removal | `"chr17:7,565,096"` -> "Region must include start-end range (e.g., 17:7565096-7590856)." |
-| Species name | Check against cached species list or known aliases | `"humanx"` -> "Unknown species. Did you mean 'homo_sapiens'?" |
-| Variant ID | Match `/^rs\d+$/` or HGVS pattern | `"rs"` -> "Variant ID appears incomplete. Expected format: rs12345 or HGVS notation." |
-| Sequence type | Must be one of `genomic`, `cds`, `cdna`, `protein` | `"mrna"` -> "Invalid sequence type. Use one of: genomic, cds, cdna, protein." |
-| Region size | Warn if region > 5Mb | "Region spans 12Mb. Ensembl may reject or truncate large regions. Consider narrowing." |
-
-### Files to Create/Modify
-
-**New file: `src/utils/input-validator.ts`**
-- `validateEnsemblId(id: string): ValidationResult`
-- `validateRegion(region: string): ValidationResult`
-- `validateSpecies(species: string, knownSpecies?: string[]): ValidationResult`
-- `validateVariantId(id: string): ValidationResult`
-- `validateSequenceType(type: string): ValidationResult`
-- `validateAll(args: ToolArgs, toolName: string): ValidationResult[]`
-- `ValidationResult`: `{ valid: boolean, message?: string, suggestion?: string }`
-
-**Modify: `src/handlers/tools.ts`**
-- Call `validateAll()` at the top of each handler, before calling the API client
-- Return structured error immediately if validation fails
-
-### Size Estimate
-~200 lines for validator, ~30 lines of handler changes.
+> Implemented with `src/utils/species-data.ts` (shared species constants), `src/utils/input-validator.ts` (8 validators + batch + tool-aware dispatcher for all 10 tools), wired into `src/handlers/tools.ts`, and `tests/input-validator.test.ts` (77 tests). Also deduplicated species data from `error-handler.ts` and `input-normalizer.ts`.
 
 ---
 
@@ -338,8 +265,8 @@ Use MCP's streaming capabilities for tools that can return large payloads.
 | Priority | Plan | Impact | Effort |
 |---|---|---|---|
 | 1 | Plan 7: Vitest migration | High (enables all other testing) | Medium |
-| 2 | Plan 8: MCP Resources & Prompts | High (new capabilities) | Medium |
-| 3 | Plan 9: Input validation | High (faster failures, less API load) | Low |
+| ~~2~~ | ~~Plan 8: MCP Resources & Prompts~~ | ~~High (new capabilities)~~ | ~~Done~~ |
+| ~~3~~ | ~~Plan 9: Input validation~~ | ~~High (faster failures, less API load)~~ | ~~Done~~ |
 | 4 | Plan 12: CI/CD | High (quality gate) | Low |
 | 5 | Plan 10: GRCh37 support | Medium (unlocks hg19 users) | Low |
 | 6 | Plan 11: Diagnostics tool | Medium (operational visibility) | Low |

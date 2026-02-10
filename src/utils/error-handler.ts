@@ -3,6 +3,8 @@
  * Maps known error patterns to context-specific suggestions.
  */
 
+import { KNOWN_SPECIES, SPECIES_ALIASES } from "./species-data.js";
+
 export class EnsemblError extends Error {
   constructor(
     message: string,
@@ -76,57 +78,6 @@ function findClosestMatch(
 
   return bestMatch;
 }
-
-// Known species names and common aliases for fuzzy matching
-const KNOWN_SPECIES: string[] = [
-  "homo_sapiens",
-  "mus_musculus",
-  "rattus_norvegicus",
-  "danio_rerio",
-  "drosophila_melanogaster",
-  "caenorhabditis_elegans",
-  "saccharomyces_cerevisiae",
-  "gallus_gallus",
-  "sus_scrofa",
-  "bos_taurus",
-  "ovis_aries",
-  "equus_caballus",
-  "canis_lupus_familiaris",
-  "felis_catus",
-  "pan_troglodytes",
-  "gorilla_gorilla",
-  "macaca_mulatta",
-  "xenopus_tropicalis",
-  "takifugu_rubripes",
-  "oryzias_latipes",
-];
-
-const SPECIES_ALIASES: Record<string, string> = {
-  human: "homo_sapiens",
-  mouse: "mus_musculus",
-  rat: "rattus_norvegicus",
-  zebrafish: "danio_rerio",
-  zebra_fish: "danio_rerio",
-  fruitfly: "drosophila_melanogaster",
-  fruit_fly: "drosophila_melanogaster",
-  fly: "drosophila_melanogaster",
-  worm: "caenorhabditis_elegans",
-  c_elegans: "caenorhabditis_elegans",
-  yeast: "saccharomyces_cerevisiae",
-  chicken: "gallus_gallus",
-  pig: "sus_scrofa",
-  cow: "bos_taurus",
-  sheep: "ovis_aries",
-  horse: "equus_caballus",
-  dog: "canis_lupus_familiaris",
-  cat: "felis_catus",
-  chimp: "pan_troglodytes",
-  chimpanzee: "pan_troglodytes",
-  gorilla: "gorilla_gorilla",
-  frog: "xenopus_tropicalis",
-  pufferfish: "takifugu_rubripes",
-  medaka: "oryzias_latipes",
-};
 
 function suggestSpecies(input: string): string | null {
   const lower = input.toLowerCase().replace(/[\s-]/g, "_");

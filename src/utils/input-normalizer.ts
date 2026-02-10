@@ -3,6 +3,8 @@
  * Handles common format variations that LLMs might produce
  */
 
+import { SPECIES_ALIASES } from "./species-data.js";
+
 export interface NormalizedInput {
   [key: string]: any;
 }
@@ -150,28 +152,7 @@ export function normalizeSpeciesName(
 
   const normalized = species.toLowerCase().replace(/[\s-]/g, "_");
 
-  // Common species mappings
-  const speciesMap: { [key: string]: string } = {
-    human: "homo_sapiens",
-    homo_sapiens: "homo_sapiens",
-    homo_sapiens_sapiens: "homo_sapiens",
-    mouse: "mus_musculus",
-    mus_musculus: "mus_musculus",
-    rat: "rattus_norvegicus",
-    rattus_norvegicus: "rattus_norvegicus",
-    zebrafish: "danio_rerio",
-    danio_rerio: "danio_rerio",
-    fruit_fly: "drosophila_melanogaster",
-    drosophila_melanogaster: "drosophila_melanogaster",
-    drosophila: "drosophila_melanogaster",
-    worm: "caenorhabditis_elegans",
-    c_elegans: "caenorhabditis_elegans",
-    caenorhabditis_elegans: "caenorhabditis_elegans",
-    yeast: "saccharomyces_cerevisiae",
-    saccharomyces_cerevisiae: "saccharomyces_cerevisiae",
-  };
-
-  return speciesMap[normalized] || normalized;
+  return SPECIES_ALIASES[normalized] || normalized;
 }
 
 /**

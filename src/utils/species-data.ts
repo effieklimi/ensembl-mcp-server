@@ -1,0 +1,58 @@
+/**
+ * Shared species data — single source of truth for species names and aliases.
+ * Used by error-handler, input-normalizer, and input-validator.
+ */
+
+export const KNOWN_SPECIES: string[] = [
+  "homo_sapiens",
+  "mus_musculus",
+  "rattus_norvegicus",
+  "danio_rerio",
+  "drosophila_melanogaster",
+  "caenorhabditis_elegans",
+  "saccharomyces_cerevisiae",
+  "gallus_gallus",
+  "sus_scrofa",
+  "bos_taurus",
+  "ovis_aries",
+  "equus_caballus",
+  "canis_lupus_familiaris",
+  "felis_catus",
+  "pan_troglodytes",
+  "gorilla_gorilla",
+  "macaca_mulatta",
+  "xenopus_tropicalis",
+  "takifugu_rubripes",
+  "oryzias_latipes",
+];
+
+export const SPECIES_ALIASES: Record<string, string> = {
+  human: "homo_sapiens",
+  homo_sapiens_sapiens: "homo_sapiens",
+  mouse: "mus_musculus",
+  rat: "rattus_norvegicus",
+  zebrafish: "danio_rerio",
+  zebra_fish: "danio_rerio",
+  fruitfly: "drosophila_melanogaster",
+  fruit_fly: "drosophila_melanogaster",
+  fly: "drosophila_melanogaster",
+  drosophila: "drosophila_melanogaster",
+  worm: "caenorhabditis_elegans",
+  c_elegans: "caenorhabditis_elegans",
+  yeast: "saccharomyces_cerevisiae",
+  chicken: "gallus_gallus",
+  pig: "sus_scrofa",
+  cow: "bos_taurus",
+  sheep: "ovis_aries",
+  horse: "equus_caballus",
+  dog: "canis_lupus_familiaris",
+  cat: "felis_catus",
+  chimp: "pan_troglodytes",
+  chimpanzee: "pan_troglodytes",
+  gorilla: "gorilla_gorilla",
+  macaque: "macaca_mulatta",
+  rhesus: "macaca_mulatta",
+  frog: "xenopus_tropicalis",
+  pufferfish: "takifugu_rubripes",
+  medaka: "oryzias_latipes",
+};

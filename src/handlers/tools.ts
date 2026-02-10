@@ -1,9 +1,19 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { EnsemblApiClient } from "../utils/ensembl-api.js";
 import { normalizeEnsemblInputs } from "../utils/input-normalizer.js";
+import { validateToolInput, type ValidationResult } from "../utils/input-validator.js";
 import { logger } from "../utils/logger.js";
 import { processResponse } from "../utils/response-processor.js";
 import { EnsemblError } from "../utils/error-handler.js";
+
+function handleValidationError(toolName: string, validation: ValidationResult) {
+  logger.warn("validation_failed", { tool: toolName, message: validation.message });
+  return {
+    error: validation.message,
+    ...(validation.suggestion && { suggestion: validation.suggestion }),
+    success: false,
+  };
+}
 
 export const ensemblClient = new EnsemblApiClient();
 
@@ -481,6 +491,8 @@ function handleError(tool: string, error: unknown) {
 export async function handleFeatureOverlap(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_feature_overlap", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_feature_overlap", validation);
     logger.info("tool_call", { tool: "ensembl_feature_overlap", args: normalizedArgs });
     let result;
     if (normalizedArgs.region) {
@@ -501,6 +513,8 @@ export async function handleFeatureOverlap(args: any) {
 export async function handleRegulatory(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_regulatory", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_regulatory", validation);
     logger.info("tool_call", { tool: "ensembl_regulatory", args: normalizedArgs });
     const result = await ensemblClient.getRegulatoryFeatures(normalizedArgs);
     return processResponse("ensembl_regulatory", result, {
@@ -514,6 +528,8 @@ export async function handleRegulatory(args: any) {
 export async function handleProteinFeatures(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_protein_features", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_protein_features", validation);
     logger.info("tool_call", { tool: "ensembl_protein_features", args: normalizedArgs });
     return await ensemblClient.getProteinFeatures(normalizedArgs);
   } catch (error) {
@@ -524,6 +540,8 @@ export async function handleProteinFeatures(args: any) {
 export async function handleMeta(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_meta", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_meta", validation);
     logger.info("tool_call", { tool: "ensembl_meta", args: normalizedArgs });
     const result = await ensemblClient.getMetaInfo(normalizedArgs);
     return processResponse("ensembl_meta", result, {
@@ -537,6 +555,8 @@ export async function handleMeta(args: any) {
 export async function handleLookup(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_lookup", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_lookup", validation);
     const { identifier } = normalizedArgs;
 
     // Batch mode: identifier is an array
@@ -570,6 +590,8 @@ export async function handleLookup(args: any) {
 export async function handleSequence(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_sequence", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_sequence", validation);
     const { identifier } = normalizedArgs;
 
     // Batch mode: identifier is an array
@@ -610,6 +632,8 @@ export async function handleSequence(args: any) {
 export async function handleMapping(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_mapping", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_mapping", validation);
     logger.info("tool_call", { tool: "ensembl_mapping", args: normalizedArgs });
     return await ensemblClient.mapCoordinates(normalizedArgs);
   } catch (error) {
@@ -620,6 +644,8 @@ export async function handleMapping(args: any) {
 export async function handleCompara(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_compara", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_compara", validation);
     logger.info("tool_call", { tool: "ensembl_compara", args: normalizedArgs });
     const result = await ensemblClient.getComparativeData(normalizedArgs);
     return processResponse("ensembl_compara", result, {
@@ -633,6 +659,8 @@ export async function handleCompara(args: any) {
 export async function handleVariation(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_variation", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_variation", validation);
     const { variant_id, hgvs_notation, species = "homo_sapiens" } = normalizedArgs;
 
     // Batch mode: variant_id is an array
@@ -683,6 +711,8 @@ export async function handleVariation(args: any) {
 export async function handleOntoTax(args: any) {
   try {
     const normalizedArgs = normalizeEnsemblInputs(args);
+    const validation = validateToolInput("ensembl_ontotax", normalizedArgs);
+    if (!validation.valid) return handleValidationError("ensembl_ontotax", validation);
     logger.info("tool_call", { tool: "ensembl_ontotax", args: normalizedArgs });
     return await ensemblClient.getOntologyTaxonomy(normalizedArgs);
   } catch (error) {
