@@ -5,7 +5,7 @@ import { logger } from "../utils/logger.js";
 import { processResponse } from "../utils/response-processor.js";
 import { EnsemblError } from "../utils/error-handler.js";
 
-const ensemblClient = new EnsemblApiClient();
+export const ensemblClient = new EnsemblApiClient();
 
 export const ensemblTools: Tool[] = [
   {

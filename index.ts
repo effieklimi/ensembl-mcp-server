@@ -5,6 +5,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  ListResourceTemplatesRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
   type CallToolRequest,
   type ListToolsRequest,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -22,6 +27,12 @@ import {
   handleVariation,
   handleOntoTax,
 } from "./src/handlers/tools.js";
+import {
+  ensemblResources,
+  ensemblResourceTemplates,
+  handleReadResource,
+} from "./src/handlers/resources.js";
+import { ensemblPrompts, handleGetPrompt } from "./src/handlers/prompts.js";
 import { logger } from "./src/utils/logger.js";
 import { formatToolResponse } from "./src/utils/formatter.js";
 
@@ -37,6 +48,8 @@ export class EnsemblMCPServer {
       {
         capabilities: {
           tools: {},
+          resources: {},
+          prompts: {},
         },
       }
     );
@@ -100,6 +113,40 @@ export class EnsemblMCPServer {
         }
       }
     );
+
+    // Handle resource listing
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      return { resources: ensemblResources };
+    });
+
+    // Handle resource template listing
+    this.server.setRequestHandler(
+      ListResourceTemplatesRequestSchema,
+      async () => {
+        return { resourceTemplates: ensemblResourceTemplates };
+      }
+    );
+
+    // Handle resource reading
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request) => {
+        return handleReadResource(request.params.uri);
+      }
+    );
+
+    // Handle prompt listing
+    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      return { prompts: ensemblPrompts };
+    });
+
+    // Handle prompt retrieval
+    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      return handleGetPrompt(
+        request.params.name,
+        (request.params.arguments ?? {}) as Record<string, string>
+      );
+    });
   }
 
   async run(): Promise<void> {
