@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import { processResponse } from "../../src/utils/response-processor.js";
 
 describe("processResponse", () => {
-  it("returns data unchanged when fullResponse is true", () => {
+  it("returns wrapped raw response when fullResponse is true", () => {
     const data = { foo: "bar" };
-    expect(processResponse("ensembl_lookup", data, { fullResponse: true })).toBe(data);
+    const result = processResponse("ensembl_lookup", data, { fullResponse: true }) as any;
+    expect(result.raw_response).toBe(true);
+    expect(result.data).toBe(data);
+    expect(result.note).toContain("ONLY the JSON");
   });
 
   it("passes through error responses", () => {
@@ -165,5 +168,219 @@ describe("processResponse", () => {
   it("passes through unknown tool data unchanged", () => {
     const data = { anything: "goes" };
     expect(processResponse("unknown_tool", data)).toBe(data);
+  });
+
+  describe("pagination", () => {
+    const makeItems = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `feat_${i}`,
+        feature_type: "gene",
+        seq_region_name: "17",
+        start: i * 1000,
+        end: i * 1000 + 999,
+        strand: 1,
+        biotype: "protein_coding",
+        external_name: `Gene${i}`,
+      }));
+
+    it("page 1 returns first N items with correct metadata", () => {
+      const data = makeItems(100);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 1,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.total_results).toBe(100);
+      expect(result.metadata.returned).toBe(25);
+      expect(result.metadata.page).toBe(1);
+      expect(result.metadata.page_size).toBe(25);
+      expect(result.metadata.total_pages).toBe(4);
+      expect(result.metadata.has_next).toBe(true);
+      expect(result.data[0].id).toBe("feat_0");
+      expect(result.data[24].id).toBe("feat_24");
+    });
+
+    it("page 2 returns correct offset slice", () => {
+      const data = makeItems(100);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 2,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.page).toBe(2);
+      expect(result.metadata.returned).toBe(25);
+      expect(result.data[0].id).toBe("feat_25");
+      expect(result.data[24].id).toBe("feat_49");
+    });
+
+    it("last page has has_next: false", () => {
+      const data = makeItems(100);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 4,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.page).toBe(4);
+      expect(result.metadata.has_next).toBe(false);
+      expect(result.metadata.total_pages).toBe(4);
+      expect(result.data[0].id).toBe("feat_75");
+    });
+
+    it("out-of-range page returns empty data with correct metadata", () => {
+      const data = makeItems(100);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 10,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.total_results).toBe(100);
+      expect(result.metadata.returned).toBe(0);
+      expect(result.metadata.total_pages).toBe(4);
+      expect(result.metadata.has_next).toBe(false);
+      expect(result.data).toEqual([]);
+    });
+
+    it("field filtering works with pagination", () => {
+      const data = Array.from({ length: 100 }, (_, i) => ({
+        id: `feat_${i}`,
+        feature_type: "gene",
+        seq_region_name: "17",
+        start: i * 1000,
+        end: i * 1000 + 999,
+        strand: 1,
+        biotype: "protein_coding",
+        external_name: `Gene${i}`,
+        extra_field: "should_be_removed",
+      }));
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 1,
+        pageSize: 10,
+      }) as any;
+      expect(result.data).toHaveLength(10);
+      expect(result.data[0]).not.toHaveProperty("extra_field");
+      expect(result.data[0]).toHaveProperty("id");
+    });
+
+    it("no page/pageSize is backward-compatible", () => {
+      const data = makeItems(30);
+      // Under default limit of 50, returns raw data
+      const result = processResponse("ensembl_feature_overlap", data);
+      expect(result).toBe(data);
+    });
+
+    it("total_pages edge case: 0 items", () => {
+      const data: unknown[] = [];
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 1,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.total_results).toBe(0);
+      expect(result.metadata.total_pages).toBe(0);
+      expect(result.metadata.has_next).toBe(false);
+      expect(result.data).toEqual([]);
+    });
+
+    it("total_pages edge case: 1 item", () => {
+      const data = makeItems(1);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 1,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.total_results).toBe(1);
+      expect(result.metadata.returned).toBe(1);
+      expect(result.metadata.total_pages).toBe(1);
+      expect(result.metadata.has_next).toBe(false);
+    });
+
+    it("total_pages edge case: exact multiple", () => {
+      const data = makeItems(50);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 1,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.total_pages).toBe(2);
+      expect(result.metadata.has_next).toBe(true);
+    });
+
+    it("page_size supersedes max_results", () => {
+      const data = makeItems(100);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        maxResults: 10,
+        page: 1,
+        pageSize: 30,
+      }) as any;
+      expect(result.metadata.returned).toBe(30);
+      expect(result.metadata.page_size).toBe(30);
+      expect(result.metadata.total_pages).toBe(4);
+    });
+
+    it("works with ensembl_variation", () => {
+      const data = Array.from({ length: 80 }, (_, i) => ({
+        id: `var_${i}`,
+        type: "variant",
+      }));
+      const result = processResponse("ensembl_variation", data, {
+        page: 2,
+        pageSize: 20,
+      }) as any;
+      expect(result.metadata.page).toBe(2);
+      expect(result.metadata.total_results).toBe(80);
+      expect(result.metadata.returned).toBe(20);
+      expect(result.data[0].id).toBe("var_20");
+    });
+
+    it("works with ensembl_meta", () => {
+      const data = Array.from({ length: 60 }, (_, i) => ({
+        name: `species_${i}`,
+        common_name: `Species ${i}`,
+      }));
+      const result = processResponse("ensembl_meta", data, {
+        page: 3,
+        pageSize: 20,
+      }) as any;
+      expect(result.metadata.page).toBe(3);
+      expect(result.metadata.total_pages).toBe(3);
+      expect(result.metadata.has_next).toBe(false);
+    });
+
+    it("works with ensembl_regulatory", () => {
+      const data = Array.from({ length: 75 }, (_, i) => ({
+        id: `reg_${i}`,
+        feature_type: "RegulatoryFeature",
+      }));
+      const result = processResponse("ensembl_regulatory", data, {
+        page: 1,
+        pageSize: 25,
+      }) as any;
+      expect(result.metadata.page).toBe(1);
+      expect(result.metadata.total_results).toBe(75);
+      expect(result.metadata.total_pages).toBe(3);
+    });
+
+    it("works with ensembl_compara homology", () => {
+      const data = {
+        data: [
+          {
+            homologies: Array.from({ length: 150 }, (_, i) => ({
+              type: "ortholog",
+              target: { id: `ENSG${i}`, species: `species_${i}` },
+            })),
+          },
+        ],
+      };
+      const result = processResponse("ensembl_compara", data, {
+        page: 2,
+        pageSize: 50,
+      }) as any;
+      expect(result.metadata.page).toBe(2);
+      expect(result.metadata.total_results).toBe(150);
+      expect(result.metadata.returned).toBe(50);
+      expect(result.metadata.has_next).toBe(true);
+    });
+
+    it("summary message includes page info when paginated", () => {
+      const data = makeItems(100);
+      const result = processResponse("ensembl_feature_overlap", data, {
+        page: 2,
+        pageSize: 25,
+      }) as any;
+      expect(result.summary).toContain("page 2 of 4");
+    });
   });
 });

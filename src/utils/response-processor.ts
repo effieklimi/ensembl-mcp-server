@@ -2,6 +2,8 @@ interface ProcessOptions {
   maxResults?: number;
   fields?: string[];
   fullResponse?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 interface ProcessedResponse {
@@ -10,8 +12,13 @@ interface ProcessedResponse {
     total_results: number;
     returned: number;
     truncated: boolean;
+    page?: number;
+    page_size?: number;
+    total_pages?: number;
+    has_next?: boolean;
   };
   data: unknown;
+  tip?: string;
 }
 
 interface ToolDefaults {
@@ -78,11 +85,34 @@ function pickFields(obj: Record<string, unknown>, fields: string[]): Record<stri
 function truncateArray(
   arr: unknown[],
   maxResults: number,
-  fields?: string[]
-): { data: unknown[]; total: number; truncated: boolean } {
+  fields?: string[],
+  page?: number,
+  pageSize?: number
+): {
+  data: unknown[];
+  total: number;
+  truncated: boolean;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+  hasNext?: boolean;
+} {
   const total = arr.length;
-  const truncated = total > maxResults;
-  let sliced = truncated ? arr.slice(0, maxResults) : arr;
+  const isPaginated = page != null || pageSize != null;
+  const effectiveSize = pageSize ?? maxResults;
+  const effectivePage = page ?? 1;
+  const offset = (effectivePage - 1) * effectiveSize;
+
+  let sliced: unknown[];
+  let truncated: boolean;
+
+  if (isPaginated) {
+    sliced = arr.slice(offset, offset + effectiveSize);
+    truncated = total > effectiveSize;
+  } else {
+    truncated = total > maxResults;
+    sliced = truncated ? arr.slice(0, maxResults) : arr;
+  }
 
   if (fields && fields.length > 0) {
     sliced = sliced.map((item) => {
@@ -91,6 +121,19 @@ function truncateArray(
       }
       return item;
     });
+  }
+
+  if (isPaginated) {
+    const totalPages = effectiveSize > 0 ? Math.ceil(total / effectiveSize) : 0;
+    return {
+      data: sliced,
+      total,
+      truncated,
+      page: effectivePage,
+      pageSize: effectiveSize,
+      totalPages,
+      hasNext: effectivePage < totalPages,
+    };
   }
 
   return { data: sliced, total, truncated };
@@ -179,12 +222,48 @@ function processVepConsequences(data: unknown[]): unknown[] {
   });
 }
 
+function buildPaginatedResponse(
+  label: string,
+  truncResult: ReturnType<typeof truncateArray>,
+): ProcessedResponse {
+  const { data, total, truncated, page, pageSize, totalPages, hasNext } = truncResult;
+  const isPaginated = page != null;
+
+  let summary: string;
+  if (isPaginated) {
+    summary = `Found ${total} ${label}. Showing page ${page} of ${totalPages} (${data.length} items).`;
+  } else {
+    summary = `Found ${total} ${label}. Showing first ${data.length}. Use page/page_size or max_results to see more.`;
+  }
+
+  const metadata: ProcessedResponse["metadata"] = {
+    total_results: total,
+    returned: (data as unknown[]).length,
+    truncated,
+  };
+
+  if (isPaginated) {
+    metadata.page = page;
+    metadata.page_size = pageSize;
+    metadata.total_pages = totalPages;
+    metadata.has_next = hasNext;
+  }
+
+  return { summary, metadata, data, tip: "Set raw=true to get the full unprocessed API response." };
+}
+
 export function processResponse(
   toolName: string,
   data: unknown,
   options?: ProcessOptions
 ): unknown {
-  if (options?.fullResponse) return data;
+  if (options?.fullResponse) {
+    return {
+      raw_response: true,
+      note: "The user requested raw output. Return ONLY the JSON below in a code block. Do NOT add any summary, explanation, or commentary before or after it.",
+      data,
+    };
+  }
 
   // Error responses pass through
   if (data && typeof data === "object" && "error" in (data as Record<string, unknown>)) {
@@ -201,16 +280,11 @@ export function processResponse(
     const defaults = DEFAULTS.ensembl_feature_overlap!;
     const maxResults = options?.maxResults ?? defaults.maxResults;
     const fields = options?.fields ?? defaults.fields;
-    const { data: sliced, total, truncated } = truncateArray(data, maxResults, fields);
+    const truncResult = truncateArray(data, maxResults, fields, options?.page, options?.pageSize);
 
-    if (!truncated) return data;
+    if (!truncResult.truncated && truncResult.page == null) return data;
 
-    const result: ProcessedResponse = {
-      summary: `Found ${total} overlapping features. Showing first ${sliced.length}. Use max_results to see more.`,
-      metadata: { total_results: total, returned: sliced.length, truncated },
-      data: sliced,
-    };
-    return result;
+    return buildPaginatedResponse("overlapping features", truncResult);
   }
 
   // Regulatory features
@@ -218,16 +292,11 @@ export function processResponse(
     const defaults = DEFAULTS.ensembl_regulatory!;
     const maxResults = options?.maxResults ?? defaults.maxResults;
     const fields = options?.fields ?? defaults.fields;
-    const { data: sliced, total, truncated } = truncateArray(data, maxResults, fields);
+    const truncResult = truncateArray(data, maxResults, fields, options?.page, options?.pageSize);
 
-    if (!truncated) return data;
+    if (!truncResult.truncated && truncResult.page == null) return data;
 
-    const result: ProcessedResponse = {
-      summary: `Found ${total} regulatory features. Showing first ${sliced.length}. Use max_results to see more.`,
-      metadata: { total_results: total, returned: sliced.length, truncated },
-      data: sliced,
-    };
-    return result;
+    return buildPaginatedResponse("regulatory features", truncResult);
   }
 
   // Meta species list
@@ -235,16 +304,11 @@ export function processResponse(
     const defaults = DEFAULTS.ensembl_meta_species!;
     const maxResults = options?.maxResults ?? defaults.maxResults;
     const fields = options?.fields ?? defaults.fields;
-    const { data: sliced, total, truncated } = truncateArray(data, maxResults, fields);
+    const truncResult = truncateArray(data, maxResults, fields, options?.page, options?.pageSize);
 
-    if (!truncated) return data;
+    if (!truncResult.truncated && truncResult.page == null) return data;
 
-    const result: ProcessedResponse = {
-      summary: `Found ${total} species. Showing first ${sliced.length}. Use max_results to see more.`,
-      metadata: { total_results: total, returned: sliced.length, truncated },
-      data: sliced,
-    };
-    return result;
+    return buildPaginatedResponse("species", truncResult);
   }
 
   // Compara - gene tree flattening
@@ -256,16 +320,29 @@ export function processResponse(
         const defaults = DEFAULTS.ensembl_compara!;
         const maxResults = options?.maxResults ?? defaults.maxResults;
         const leaves = flattenGeneTree(obj);
-        const total = leaves.length;
-        const truncated = total > maxResults;
-        const sliced = truncated ? leaves.slice(0, maxResults) : leaves;
+        const truncResult = truncateArray(leaves, maxResults, undefined, options?.page, options?.pageSize);
 
-        const result: ProcessedResponse = {
-          summary: `Gene tree contains ${total} leaf nodes (species/gene pairs).${truncated ? ` Showing first ${maxResults}. Use max_results to see more.` : ""}`,
-          metadata: { total_results: total, returned: sliced.length, truncated },
-          data: sliced,
+        const isPaginated = truncResult.page != null;
+        let summary: string;
+        if (isPaginated) {
+          summary = `Gene tree contains ${truncResult.total} leaf nodes (species/gene pairs). Showing page ${truncResult.page} of ${truncResult.totalPages} (${(truncResult.data as unknown[]).length} items).`;
+        } else {
+          summary = `Gene tree contains ${truncResult.total} leaf nodes (species/gene pairs).${truncResult.truncated ? ` Showing first ${(truncResult.data as unknown[]).length}. Use page/page_size or max_results to see more.` : ""}`;
+        }
+
+        const metadata: ProcessedResponse["metadata"] = {
+          total_results: truncResult.total,
+          returned: (truncResult.data as unknown[]).length,
+          truncated: truncResult.truncated,
         };
-        return result;
+        if (isPaginated) {
+          metadata.page = truncResult.page;
+          metadata.page_size = truncResult.pageSize;
+          metadata.total_pages = truncResult.totalPages;
+          metadata.has_next = truncResult.hasNext;
+        }
+
+        return { summary, metadata, data: truncResult.data, tip: "Set raw=true to get the full unprocessed API response." } as ProcessedResponse;
       }
 
       // Homology response
@@ -275,18 +352,11 @@ export function processResponse(
         );
         const defaults = DEFAULTS.ensembl_compara!;
         const maxResults = options?.maxResults ?? defaults.maxResults;
-        const total = homologies.length;
-        const truncated = total > maxResults;
-        const sliced = truncated ? homologies.slice(0, maxResults) : homologies;
+        const truncResult = truncateArray(homologies, maxResults, undefined, options?.page, options?.pageSize);
 
-        if (!truncated) return data;
+        if (!truncResult.truncated && truncResult.page == null) return data;
 
-        const result: ProcessedResponse = {
-          summary: `Found ${total} homologs. Showing first ${sliced.length}. Use max_results to see more.`,
-          metadata: { total_results: total, returned: sliced.length, truncated },
-          data: sliced,
-        };
-        return result;
+        return buildPaginatedResponse("homologs", truncResult);
       }
     }
 
@@ -294,16 +364,11 @@ export function processResponse(
     if (Array.isArray(data)) {
       const defaults = DEFAULTS.ensembl_compara!;
       const maxResults = options?.maxResults ?? defaults.maxResults;
-      const { data: sliced, total, truncated } = truncateArray(data, maxResults);
+      const truncResult = truncateArray(data, maxResults, undefined, options?.page, options?.pageSize);
 
-      if (!truncated) return data;
+      if (!truncResult.truncated && truncResult.page == null) return data;
 
-      const result: ProcessedResponse = {
-        summary: `Found ${total} results. Showing first ${sliced.length}. Use max_results to see more.`,
-        metadata: { total_results: total, returned: sliced.length, truncated },
-        data: sliced,
-      };
-      return result;
+      return buildPaginatedResponse("results", truncResult);
     }
   }
 
@@ -321,16 +386,11 @@ export function processResponse(
         "most_severe_consequence" in (data[0] as Record<string, unknown>);
 
       const processed = isVep ? processVepConsequences(data) : data;
-      const { data: sliced, total, truncated } = truncateArray(processed, maxResults);
+      const truncResult = truncateArray(processed, maxResults, undefined, options?.page, options?.pageSize);
 
-      if (!truncated && !isVep) return data;
+      if (!truncResult.truncated && !isVep && truncResult.page == null) return data;
 
-      const result: ProcessedResponse = {
-        summary: `Found ${total} variant results.${truncated ? ` Showing first ${sliced.length}. Use max_results to see more.` : ""}`,
-        metadata: { total_results: total, returned: sliced.length, truncated },
-        data: sliced,
-      };
-      return result;
+      return buildPaginatedResponse("variant results", truncResult);
     }
   }
 

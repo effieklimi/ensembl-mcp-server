@@ -10,6 +10,7 @@ import {
   validateBatchArray,
   validateToolInput,
   validateAssembly,
+  validatePagination,
 } from "../../src/utils/input-validator.js";
 
 describe("validateEnsemblId", () => {
@@ -487,5 +488,121 @@ describe("validateAssembly", () => {
     const result = validateAssembly("T2T-CHM13");
     expect(result.valid).toBe(false);
     expect(result.message).toContain("Unknown assembly");
+  });
+});
+
+describe("validatePagination", () => {
+  it("accepts valid page and page_size", () => {
+    expect(validatePagination({ page: 1, page_size: 50 }).valid).toBe(true);
+  });
+
+  it("accepts page only", () => {
+    expect(validatePagination({ page: 3 }).valid).toBe(true);
+  });
+
+  it("accepts page_size only", () => {
+    expect(validatePagination({ page_size: 100 }).valid).toBe(true);
+  });
+
+  it("accepts when neither is provided", () => {
+    expect(validatePagination({}).valid).toBe(true);
+  });
+
+  it("accepts page_size of 1", () => {
+    expect(validatePagination({ page_size: 1 }).valid).toBe(true);
+  });
+
+  it("accepts page_size of 200", () => {
+    expect(validatePagination({ page_size: 200 }).valid).toBe(true);
+  });
+
+  it("rejects page < 1", () => {
+    const result = validatePagination({ page: 0 });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page");
+  });
+
+  it("rejects negative page", () => {
+    const result = validatePagination({ page: -1 });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page");
+  });
+
+  it("rejects non-integer page", () => {
+    const result = validatePagination({ page: 1.5 });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page");
+  });
+
+  it("rejects page_size < 1", () => {
+    const result = validatePagination({ page_size: 0 });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page_size");
+  });
+
+  it("rejects page_size > 200", () => {
+    const result = validatePagination({ page_size: 201 });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page_size");
+  });
+
+  it("rejects non-integer page_size", () => {
+    const result = validatePagination({ page_size: 10.5 });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page_size");
+  });
+});
+
+describe("pagination via validateToolInput", () => {
+  it("ensembl_feature_overlap - accepts valid pagination", () => {
+    expect(validateToolInput("ensembl_feature_overlap", {
+      region: "17:7565096-7590856",
+      page: 2,
+      page_size: 25,
+    }).valid).toBe(true);
+  });
+
+  it("ensembl_feature_overlap - rejects invalid page", () => {
+    const result = validateToolInput("ensembl_feature_overlap", {
+      region: "17:7565096-7590856",
+      page: 0,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page");
+  });
+
+  it("ensembl_variation - rejects invalid page_size", () => {
+    const result = validateToolInput("ensembl_variation", {
+      variant_id: "rs699",
+      page_size: 500,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page_size");
+  });
+
+  it("ensembl_meta - accepts valid pagination", () => {
+    expect(validateToolInput("ensembl_meta", {
+      info_type: "species",
+      page: 1,
+      page_size: 100,
+    }).valid).toBe(true);
+  });
+
+  it("ensembl_compara - accepts valid pagination", () => {
+    expect(validateToolInput("ensembl_compara", {
+      gene_id: "ENSG00000141510",
+      analysis_type: "homology",
+      page: 3,
+      page_size: 50,
+    }).valid).toBe(true);
+  });
+
+  it("ensembl_regulatory - rejects non-integer page", () => {
+    const result = validateToolInput("ensembl_regulatory", {
+      region: "17:7565096-7590856",
+      page: 2.5,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.message).toContain("Invalid page");
   });
 });

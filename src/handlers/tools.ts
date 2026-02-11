@@ -17,6 +17,28 @@ function handleValidationError(toolName: string, validation: ValidationResult) {
 
 export const ensemblClient = new EnsemblApiClient();
 
+/** Shared pagination properties for tools that support paging through results. */
+const PAGINATION_PROPERTIES = {
+  page: {
+    type: "number" as const,
+    description: "Page number (default: 1). Use with page_size to page through large result sets.",
+    minimum: 1,
+  },
+  page_size: {
+    type: "number" as const,
+    description: "Results per page (default: 50, max: 200). When provided, supersedes max_results.",
+    minimum: 1,
+    maximum: 200,
+  },
+};
+
+/** Shared raw output property — bypasses all response processing. */
+const RAW_PROPERTY = {
+  type: "boolean" as const,
+  description:
+    "Set to true to return the raw, unprocessed API JSON. Bypasses all summarization, field filtering, and truncation. Use this when the user asks for raw data, full JSON, or complete API response.",
+};
+
 /** Shared assembly property for tools that support GRCh37/GRCh38 routing. */
 const ASSEMBLY_PROPERTY = {
   type: "string" as const,
@@ -65,6 +87,8 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return (default: 50). Use a higher value to see more results.",
         },
+        ...PAGINATION_PROPERTIES,
+        raw: RAW_PROPERTY,
         assembly: ASSEMBLY_PROPERTY,
       },
       oneOf: [{ required: ["region"] }, { required: ["feature_id"] }],
@@ -103,6 +127,8 @@ export const ensemblTools: Tool[] = [
           description:
             "Type of regulatory feature (e.g., 'RegulatoryFeature', 'MotifFeature', 'TF_binding_site')",
         },
+        ...PAGINATION_PROPERTIES,
+        raw: RAW_PROPERTY,
         assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [
@@ -184,6 +210,8 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return for species lists (default: 50).",
         },
+        ...PAGINATION_PROPERTIES,
+        raw: RAW_PROPERTY,
         assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [{ required: ["info_type"] }, { required: ["archive_id"] }],
@@ -270,6 +298,7 @@ export const ensemblTools: Tool[] = [
           enum: ["soft", "hard"],
           description: "Mask repeats (soft=lowercase, hard=N)",
         },
+        raw: RAW_PROPERTY,
         assembly: ASSEMBLY_PROPERTY,
       },
       required: ["identifier"],
@@ -373,6 +402,8 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return (default: 100). Use a higher value to see more results.",
         },
+        ...PAGINATION_PROPERTIES,
+        raw: RAW_PROPERTY,
         assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [
@@ -441,6 +472,8 @@ export const ensemblTools: Tool[] = [
           description:
             "Maximum number of results to return (default: 50). Use a higher value to see more results.",
         },
+        ...PAGINATION_PROPERTIES,
+        raw: RAW_PROPERTY,
         assembly: ASSEMBLY_PROPERTY,
       },
       anyOf: [
@@ -520,6 +553,9 @@ export async function handleFeatureOverlap(args: any) {
     }
     return processResponse("ensembl_feature_overlap", result, {
       maxResults: args.max_results,
+      page: normalizedArgs.page,
+      pageSize: normalizedArgs.page_size,
+      fullResponse: normalizedArgs.raw,
     });
   } catch (error) {
     return handleError("ensembl_feature_overlap", error);
@@ -535,6 +571,9 @@ export async function handleRegulatory(args: any) {
     const result = await ensemblClient.getRegulatoryFeatures(normalizedArgs);
     return processResponse("ensembl_regulatory", result, {
       maxResults: args.max_results,
+      page: normalizedArgs.page,
+      pageSize: normalizedArgs.page_size,
+      fullResponse: normalizedArgs.raw,
     });
   } catch (error) {
     return handleError("ensembl_regulatory", error);
@@ -562,6 +601,9 @@ export async function handleMeta(args: any) {
     const result = await ensemblClient.getMetaInfo(normalizedArgs);
     return processResponse("ensembl_meta", result, {
       maxResults: args.max_results,
+      page: normalizedArgs.page,
+      pageSize: normalizedArgs.page_size,
+      fullResponse: normalizedArgs.raw,
     });
   } catch (error) {
     return handleError("ensembl_meta", error);
@@ -639,7 +681,9 @@ export async function handleSequence(args: any) {
     // Single mode
     logger.info("tool_call", { tool: "ensembl_sequence", args: normalizedArgs });
     const result = await ensemblClient.getSequenceData(normalizedArgs);
-    return processResponse("ensembl_sequence", result);
+    return processResponse("ensembl_sequence", result, {
+      fullResponse: normalizedArgs.raw,
+    });
   } catch (error) {
     return handleError("ensembl_sequence", error);
   }
@@ -666,6 +710,9 @@ export async function handleCompara(args: any) {
     const result = await ensemblClient.getComparativeData(normalizedArgs);
     return processResponse("ensembl_compara", result, {
       maxResults: args.max_results,
+      page: normalizedArgs.page,
+      pageSize: normalizedArgs.page_size,
+      fullResponse: normalizedArgs.raw,
     });
   } catch (error) {
     return handleError("ensembl_compara", error);
@@ -718,6 +765,9 @@ export async function handleVariation(args: any) {
     const result = await ensemblClient.getVariationData(normalizedArgs);
     return processResponse("ensembl_variation", result, {
       maxResults: args.max_results,
+      page: normalizedArgs.page,
+      pageSize: normalizedArgs.page_size,
+      fullResponse: normalizedArgs.raw,
     });
   } catch (error) {
     return handleError("ensembl_variation", error);

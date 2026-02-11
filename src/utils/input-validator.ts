@@ -307,6 +307,41 @@ export function validateBatchArray(
 }
 
 // ---------------------------------------------------------------------------
+// Pagination validator
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate pagination parameters (page and page_size).
+ * Both are optional — only validates when present.
+ */
+export function validatePagination(args: Record<string, any>): ValidationResult {
+  if (args.page != null) {
+    if (typeof args.page !== "number" || !Number.isInteger(args.page) || args.page < 1) {
+      return {
+        valid: false,
+        message: `Invalid page '${args.page}'. Must be a positive integer.`,
+        suggestion: "Page numbering starts at 1.",
+      };
+    }
+  }
+  if (args.page_size != null) {
+    if (
+      typeof args.page_size !== "number" ||
+      !Number.isInteger(args.page_size) ||
+      args.page_size < 1 ||
+      args.page_size > 200
+    ) {
+      return {
+        valid: false,
+        message: `Invalid page_size '${args.page_size}'. Must be an integer between 1 and 200.`,
+        suggestion: "Default page_size is 50. Maximum is 200.",
+      };
+    }
+  }
+  return VALID;
+}
+
+// ---------------------------------------------------------------------------
 // Per-tool validation functions
 // ---------------------------------------------------------------------------
 
@@ -334,6 +369,8 @@ function validateFeatureOverlap(args: Record<string, any>): ValidationResult {
     const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
+  const p = validatePagination(args);
+  if (!p.valid) return p;
   return VALID;
 }
 
@@ -360,6 +397,8 @@ function validateRegulatory(args: Record<string, any>): ValidationResult {
     const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
+  const p = validatePagination(args);
+  if (!p.valid) return p;
   return VALID;
 }
 
@@ -408,6 +447,8 @@ function validateMeta(args: Record<string, any>): ValidationResult {
     const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
+  const p = validatePagination(args);
+  if (!p.valid) return p;
   return VALID;
 }
 
@@ -535,6 +576,8 @@ function validateCompara(args: Record<string, any>): ValidationResult {
     const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
+  const p = validatePagination(args);
+  if (!p.valid) return p;
   return VALID;
 }
 
@@ -575,6 +618,8 @@ function validateVariation(args: Record<string, any>): ValidationResult {
     const r = validateAssembly(args.assembly);
     if (!r.valid) return r;
   }
+  const p = validatePagination(args);
+  if (!p.valid) return p;
   return VALID;
 }
 

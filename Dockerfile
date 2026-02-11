@@ -19,5 +19,9 @@ RUN npm run build
 # Remove dev dependencies to reduce image size
 RUN npm prune --production
 
+# Default port for HTTP mode (Render overrides via env)
+ENV PORT=10000
+EXPOSE 10000
+
 # Start the server
 CMD ["node", "dist/index.js"]

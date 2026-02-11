@@ -1,6 +1,6 @@
 # Ensembl MCP Server - Improvement Plans
 
-> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), Plan 9 (input validation), Plan 10 (GRCh37 support), and Plan 12 (CI/CD) have been implemented. The plans below cover the next round of improvements.
+> Plans 1-6 (caching, batch operations, response truncation, error handling, structured logging, retry logic), Plan 7 (Vitest), Plan 8 (MCP resources & prompts), Plan 9 (input validation), Plan 10 (GRCh37 support), Plan 12 (CI/CD), and Plan 13 (pagination) have been implemented. The plans below cover the next round of improvements.
 
 ---
 
@@ -94,46 +94,9 @@ Add an `ensembl_diagnostics` tool that exposes internal metrics and a health che
 
 ---
 
-## Plan 13: Pagination for Large Result Sets
+## ~~Plan 13: Pagination for Large Result Sets~~ (Implemented)
 
-### Problem
-Feature overlap queries on gene-dense regions can return thousands of results. Currently these are truncated, losing data silently. Users have no way to page through full results.
-
-### Approach
-Add optional pagination parameters to tools that return arrays.
-
-### Parameters to Add
-
-On `ensembl_feature_overlap`, `ensembl_variation`, `ensembl_meta` (species):
-- `page`: integer, default 1
-- `page_size`: integer, default 50, max 200
-
-### Implementation
-
-**Modify: `src/utils/response-processor.ts`**
-- Add `paginate(data: any[], page: number, pageSize: number): PaginatedResponse`
-- `PaginatedResponse`: `{ data, page, page_size, total_results, total_pages, has_next }`
-
-**Modify: `src/handlers/tools.ts`**
-- Add `page` and `page_size` to relevant tool schemas
-- Apply pagination after response processing
-
-### Response Format
-```json
-{
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "page_size": 50,
-    "total_results": 847,
-    "total_pages": 17,
-    "has_next": true
-  }
-}
-```
-
-### Size Estimate
-~40 lines for pagination logic, ~20 lines of schema changes.
+> Added `page` and `page_size` parameters to 5 tools (`ensembl_feature_overlap`, `ensembl_regulatory`, `ensembl_meta`, `ensembl_compara`, `ensembl_variation`). Extended `ProcessOptions` and `ProcessedResponse.metadata` with pagination fields (`page`, `page_size`, `total_pages`, `has_next`). Updated `truncateArray` to support offset-based slicing. `page_size` supersedes `max_results` when both provided. Out-of-range pages return empty data with correct metadata. Backward-compatible — omitting pagination params produces identical output. Added `validatePagination` to input validator, wired into all 5 tool validators. 220 tests across 7 files, all passing.
 
 ---
 
@@ -171,5 +134,5 @@ Use MCP's streaming capabilities for tools that can return large payloads.
 | ~~4~~ | ~~Plan 12: CI/CD~~ | ~~High (quality gate)~~ | ~~Done~~ |
 | ~~5~~ | ~~Plan 10: GRCh37 support~~ | ~~Medium (unlocks hg19 users)~~ | ~~Done~~ |
 | 6 | Plan 11: Diagnostics tool | Medium (operational visibility) | Low |
-| 7 | Plan 13: Pagination | Medium (better data access) | Low |
+| ~~7~~ | ~~Plan 13: Pagination~~ | ~~Medium (better data access)~~ | ~~Done~~ |
 | 8 | Plan 14: Streaming | Low (nice-to-have) | Medium |
