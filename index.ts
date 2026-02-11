@@ -177,9 +177,35 @@ function startHttpServer(port: number): void {
     }
 
     // Health check
-    if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
+    if (req.method === "GET" && req.url === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "ok", name: "ensembl-mcp", version: "1.0.0" }));
+      res.end(JSON.stringify({ status: "ok" }));
+      return;
+    }
+
+    // Landing page
+    if (req.method === "GET" && req.url === "/") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        name: "Ensembl MCP Server",
+        version: "1.0.0",
+        description: "Model Context Protocol server for the Ensembl genomics database. Provides AI-powered access to gene lookup, variant analysis (VEP), comparative genomics, regulatory features, coordinate mapping, and sequence retrieval across 300+ species.",
+        mcp_endpoint: "/mcp",
+        transport: "Streamable HTTP (MCP spec)",
+        tools: [
+          "ensembl_lookup - Gene/transcript/variant lookup by ID or symbol",
+          "ensembl_feature_overlap - Find features overlapping a genomic region",
+          "ensembl_variation - Variant analysis and VEP consequence prediction",
+          "ensembl_sequence - DNA, RNA, and protein sequence retrieval",
+          "ensembl_compara - Homology, gene trees, and cross-species alignments",
+          "ensembl_regulatory - Regulatory features and binding matrices",
+          "ensembl_mapping - Coordinate mapping between assemblies and systems",
+          "ensembl_meta - Species lists, server info, and data releases",
+          "ensembl_protein_features - Protein domains and annotations",
+          "ensembl_ontotax - Ontology and taxonomy search",
+        ],
+        source: "https://github.com/effieklimi/ensembl-mcp-server",
+      }, null, 2));
       return;
     }
 
